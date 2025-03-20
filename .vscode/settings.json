@@ -1,0 +1,16 @@
+{
+    // Windows settings
+    "cortex-debug.armToolchainPath.windows": "C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/bin",
+    "cortex-debug.gdbPath.windows": "C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/bin/arm-none-eabi-gdb.exe",
+    "cortex-debug.openocdPath.windows": "C:/ProgramData/chocolatey/bin/openocd",
+
+    // macOS (osx) settings
+    "cortex-debug.armToolchainPath.osx": "/opt/homebrew/bin/",
+    "cortex-debug.gdbPath.osx": "/opt/homebrew/bin/arm-none-eabi-gdb",
+    "cortex-debug.openocdPath.osx": "/opt/homebrew/bin/openocd",
+
+    // Linux settings
+    "cortex-debug.armToolchainPath.linux": "/usr/bin",
+    "cortex-debug.gdbPath.linux": "/usr/bin/gdb-multiarch",
+    "cortex-debug.openocdPath.linux": "/usr/bin/openocd"
+}

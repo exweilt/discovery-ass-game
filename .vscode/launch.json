@@ -1,0 +1,34 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "cortex-debug",
+            "request": "launch",
+            "name": "Flash and Launch (OpenOCD)",
+            "preLaunchTask": "Build current ARM Assembly Language program",
+            "cwd": "${workspaceFolder}/build/${relativeFileDirname}/${fileBasenameNoExtension}",
+            "executable": "firmware.elf",
+            "servertype":"openocd",
+            "interface": "swd",
+            "device": "STM32F303xC",
+            "configFiles": ["../../../support/custom.cfg"],
+            "svdFile": "../../../support/STM32F303.svd",
+            "postStartSessionCommands": ["tbreak Main", "continue"],
+            "showDevDebugOutput": "both",
+            "overrideLaunchCommands": [
+                "interpreter-exec console \"monitor reset halt\"",
+            ],
+            "windows":{
+                "cwd": "${workspaceFolder}\\build\\${relativeFileDirname}\\${fileBasenameNoExtension}",
+                "serverpath": "${config:cortex-debug.openocdPath.windows}",
+                "postDebugTask": "windowsKillOpenOcd"
+            },
+            "osx":{
+                "serverpath": "${config:cortex-debug.openocdPath.osx}"
+            },
+            "linux":{
+                "serverpath": "${config:cortex-debug.openocdPath.linux}"
+            }
+        }
+    ]
+}

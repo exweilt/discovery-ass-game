@@ -1,0 +1,205 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "windows": {
+        "options": {
+            "shell": {
+                "executable": "cmd.exe",
+                "args": ["/c"]
+            }
+        }
+    },
+    "options": {
+        "shell": {
+            "executable": "bash",
+            "args": [
+                "-c",
+                "-O",
+                "nullglob"
+            ]
+        }
+    },
+    "tasks": [
+        {
+            "label": "Create build directory",
+            "type": "shell",
+            "windows": {
+                "command": "support\\mkdir.bat",
+                "args": [
+                    "build\\${relativeFileDirname}\\${fileBasenameNoExtension}"
+                ]
+            },
+            "command": "mkdir",
+            "args": [
+                "-p",
+                "build/${relativeFileDirname}/${fileBasenameNoExtension}"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "focus": true,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true,
+                "close": false
+            }
+        },
+        {
+            "label": "Build .elf file",
+            "type": "shell",
+            "windows":{
+                "command": "${config:cortex-debug.armToolchainPath.windows}\\arm-none-eabi-gcc.exe",
+                "args": [
+                    "-x",
+                    "assembler-with-cpp",
+                    "-I${relativeFileDirname}",
+                    "-Isupport",
+                    "-mcpu=cortex-m4",
+                    "-mthumb",
+                    "-DUSE_HAL_DRIVER",
+                    "-DSTM32F303xC",
+                    "-Og",
+                    "-Wall",
+                    "-fdata-sections",
+                    "-ffunction-sections",
+                    "-g",
+                    "-gdwarf-2",
+                    "-nostdlib",
+                    "-nodefaultlibs",
+                    "-nostartfiles",
+                    "-Tsupport/STM32F303VCTx_FLASH.ld",
+                    "-Wl,--no-warn-rwx-segment,--whole-archive",
+                    "-o",
+                    "build\\${relativeFileDirname}\\${fileBasenameNoExtension}\\firmware.elf",
+                    "support\\startup.s",
+                    "${relativeFileDirname}\\${fileBasename}"        
+                ]
+            },
+            "osx": {
+                "command": "${config:cortex-debug.armToolchainPath.osx}/arm-none-eabi-gcc",
+            },
+            "linux": {
+                "command": "${config:cortex-debug.armToolchainPath.linux}/arm-none-eabi-gcc",
+            },
+            "args": [
+                "-x",
+                "assembler-with-cpp",
+                "-I${relativeFileDirname}",
+                "-Isupport",
+                "-mcpu=cortex-m4",
+                "-mthumb",
+                "-DUSE_HAL_DRIVER",
+                "-DSTM32F303xC",
+                "-Og",
+                "-Wall",
+                "-fdata-sections",
+                "-ffunction-sections",
+                "-g",
+                "-gdwarf-2",
+                "-nostdlib",
+                "-nodefaultlibs",
+                "-nostartfiles",
+                "-Tsupport/STM32F303VCTx_FLASH.ld",
+                "-Wl,--no-warn-rwx-segment,--whole-archive",
+                "-o",
+                "build/${relativeFileDirname}/${fileBasenameNoExtension}/firmware.elf",
+                "support/startup.s",
+                "${relativeFileDirname}/${fileBasename}"
+            ],
+            "problemMatcher": [
+                {
+                    "owner": "arm",
+                    "fileLocation": [
+                        "relative",
+                        "${fileWorkspaceFolder}"
+                    ],
+                    "pattern": {
+                        "regexp": "^(.*):(\\d+):\\s+(Warning|Error):\\s+(.*)$",
+                        "file": 1,
+                        "line": 2,
+                        "severity": 3,
+                        "message": 4
+                    }
+                },
+                {
+                    "owner": "arm",
+                    "fileLocation": [
+                        "absolute"
+                    ],
+                    "pattern": {
+                        "regexp": "^(.*):(\\d+):\\(.*\\):\\s+(.*)$",
+                        "file": 1,
+                        "line": 2,
+                        "message": 3
+                    }
+                }
+            ],
+            "presentation": {
+                "echo": true,
+                "focus": true,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": false,
+                "revealProblems": "always",
+                "close": false
+            }
+        },
+        {
+            "label": "Output .elf summary",
+            "type": "shell",
+            "windows":{
+                "command": "${config:cortex-debug.armToolchainPath.windows}\\arm-none-eabi-size.exe",
+                "args": [
+                    "build\\${relativeFileDirname}\\${fileBasenameNoExtension}\\firmware.elf"
+                ],
+            },
+            "osx": {
+                "command": "${config:cortex-debug.armToolchainPath.osx}/arm-none-eabi-size",
+            },
+            "linux": {
+                "command": "${config:cortex-debug.armToolchainPath.linux}/arm-none-eabi-size",
+            },
+            "args": [
+                "build/${relativeFileDirname}/${fileBasenameNoExtension}/firmware.elf"
+            ],
+            "presentation": {
+                "echo": true,
+                "focus": true,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": false,
+                "revealProblems": "onProblem"
+            }
+        },
+        {
+            "label": "Build current ARM Assembly Language program",
+            "group": "build",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Create build directory",
+                "Build .elf file",
+                "Output .elf summary"
+            ]
+        },
+        {
+            "label": "windowsKillOpenOcd",
+            "type": "shell",
+            "command": "taskkill",
+            "args": [
+                "/f",
+                "/im",
+                "openocd.exe"
+            ],
+            "options": {
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": [
+                        "/c"
+                    ]
+                }
+            },
+            "problemMatcher": []
+        }
+    ]
+}
