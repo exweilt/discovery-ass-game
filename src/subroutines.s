@@ -32,6 +32,15 @@ random:
 
     POP {PC}
 
+@   Blinking - open/close LED
+@   
+@   Need input R1 (LED Number)
+@
+@   R4 Read GPIOE_ODR
+@   R5 Store GPIOE_ODR and make change
+@
+@   R6 R7 Calculations to change GPIOE_ODR
+
 bliking:
   PUSH  {R4-R12,LR}                     @ LED code in R1
 
@@ -45,13 +54,22 @@ bliking:
   STR     R5, [R4]                      @ Write
 
   BL      STICK_TIMER
+  @ Need Access to Stick Timer (To check pause time)
 
   POP  {R4-R12,PC}
 
-  @ Need Access to Stick Timer
+@   Clockwise Blinking - Blink in Clockwise
+@
+@   No input need
+@
+@   Use Blinking subroutine
+@
+@   R4 Current working LED
+@   R1 Update to current LED (To check Level (Level subroutine))
+@
 
 clockwise_bliking:
-  PUSH  {R4-R12,LR}			@
+  PUSH  {R4-R12,LR}
 
 .reset:
 
@@ -63,17 +81,25 @@ clockwise_bliking:
   CMP	  R4, #16
   BEQ	  reset
 
-  MOV     R1, R4
-  STR 	  R1, =current_LED		@ Update current_LED
-  BL 	  bliking			@ Open
-  BL 	  bliking   			@ Close
+  MOV   R1, R4
+  STR 	R1, =current_LED		@ Update current_LED
+  BL 	  bliking			        @ Open
+  BL 	  bliking   			    @ Close
 
   B  	  loop
 
   POP  {R4-R12,PC}
 
+@   Level - Level Up Count
+@
+@   No input need
+@
+@   R0 Load Level and add 1 Level
+@   R0 Load Time breack and reduce by 200ms
+@
+
 level_up:
-  PUSH  {R4-R12,LR}			@
+  PUSH  {R4-R12,LR}
 
   LDR	  R0, =Level
   ADD	  R0, R0, #1			@ Level Up
@@ -87,9 +113,19 @@ level_up:
 
   POP  {R4-R12,PC}
 
+@   EXTIO_IRQHandler - Check if you lose or win the round
+@
+@   No input need
+@
+@   The Exception Handler will automaticly called if bottom pressed
+@   R4 current LED load (save from Clockwise Blinking)
+@   R5 correct LED load (save from Random number)
+@   R0 R4 R5 For reset the Exception Handler
+@
+
 EXTI0_IRQHandler:
 
-  PUSH  {R4,R5,LR}			@ Return R0 1 TRUE, 0 FALSE
+  PUSH  {R4,R5,LR}			            @ Return R0 1 TRUE, 0 FALSE
 
   LDR     R4, =current_LED        	@ Check current LED and correct LED
   LDR     R5, =correct_LED
