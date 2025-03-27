@@ -178,9 +178,22 @@ EXTI0_IRQHandler:
   @ Return from interrupt handler
   POP  {R4,R5,PC}
 
+@     Takes R0 as number of wins
+blink_for_each_win:
+  MOV   R1, #0
+for_win_loop:
+  CMP   R1, R0
+  BGE   end_game
 
-  .section .data
+@ Blinking Code
   
+
+
+  ADD   R1, R1, #1
+  B for_win_loop
+
+@   Global data
+  .section .data
 button_count:
   .space  4
 
