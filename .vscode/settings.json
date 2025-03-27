@@ -11,6 +11,6 @@
 
     // Linux settings
     "cortex-debug.armToolchainPath.linux": "/usr/bin",
-    "cortex-debug.gdbPath.linux": "/usr/bin/gdb-multiarch",
+    "cortex-debug.gdbPath.linux": "/usr/bin/arm-none-eabi-gdb",
     "cortex-debug.openocdPath.linux": "/usr/bin/openocd"
 }
