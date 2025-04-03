@@ -145,4 +145,56 @@ set_gpio_port_e_clock:
 
   BX LR
 
+
+@ delay_ms subroutine
+@ Use the Cortex SysTick timer to wait for a specified number of milliseconds
+@
+@ See Yiu, Joseph, "The Definitive Guide to the ARM Cortex-M3 and Cortex-M4
+@   Processors", 3rd edition, Chapter 9.
+@
+@ Parameters:
+@   R0: delay - time to wait in ms
+@
+@ Return:
+@   None
+delay_ms:
+  PUSH  {R4-R5,LR}
+
+  LDR   R4, =SYSTICK_CSR            @ Stop SysTick timer
+  LDR   R5, =0                      @   by writing 0 to CSR
+  STR   R5, [R4]                    @   CSR is the Control and Status Register
   
+  LDR   R4, =SYSTICK_LOAD           @ Set SysTick LOAD for 1ms delay
+  LDR   R5, =7999                   @ Assuming a 8MHz clock
+  STR   R5, [R4]                    @ 
+  
+  LDR   R4, =SYSTICK_VAL            @ Reset SysTick internal counter to 0
+  LDR   R5, =0x1                    @   by writing any value
+  STR   R5, [R4]  
+
+  LDR   R4, =SYSTICK_CSR            @ Start SysTick timer by setting CSR to 0x5
+  LDR   R5, =0x5                    @   set CLKSOURCE (bit 2) to system clock (1)
+  STR   R5, [R4]                    @   set ENABLE (bit 0) to 1
+
+.LwhDelay:                          @ while (delay != 0) {
+  CMP   R0, #0  
+  BEQ   .LendwhDelay  
+  
+.Lwait:
+  LDR   R5, [R4]                    @   Repeatedly load the CSR and check bit 16
+  AND   R5, #0x10000                @   Loop until bit 16 is 1, indicating that
+  CMP   R5, #0                      @     the SysTick internal counter has counted
+  BEQ   .Lwait                      @     from 0x3E7F down to 0 and 1ms has elapsed 
+
+  SUB   R0, R0, #1                  @   delay = delay - 1
+  B     .LwhDelay                   @ }
+
+.LendwhDelay:
+
+  LDR   R4, =SYSTICK_CSR            @ Stop SysTick timer
+  LDR   R5, =0                      @   by writing 0 to CSR
+  STR   R5, [R4]                    @   CSR is the Control and Status Register
+  
+  POP   {R4-R5,PC}
+
+  .end
