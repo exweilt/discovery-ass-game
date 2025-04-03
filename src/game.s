@@ -21,28 +21,12 @@ Main:
   PUSH  {R4-R5,LR}
 
 
-  @
-  @ Prepare GPIO Port E Pin 9 for output (LED LD3)
-  @ We'll blink LED LD3 (the orange LED)
-  @
+  BL set_gpio_port_e_clock
 
-  @ Enable GPIO port E by enabling its clock
-  LDR     R4, =RCC_AHBENR
-  LDR     R5, [R4]
-  ORR     R5, R5, #(0b1 << (RCC_AHBENR_GPIOEEN_BIT))
-  STR     R5, [R4]
+  @ So LEDs are set up to illuminate light
+  BL set_pins_for_output
 
-  @ Configure LD3 for output
-  @   by setting bits 27:26 of GPIOE_MODER to 01 (GPIO Port E Mode Register)
-  @   (by BIClearing then ORRing)
-  LDR     R4, =GPIOE_MODER
-  LDR     R5, [R4]                    @ Read ...
-  BIC     R5, #(0b11<<(LD3_PIN*2))    @ Modify ...
-  ORR     R5, #(0b01<<(LD3_PIN*2))    @ write 01 to bits 
-  STR     R5, [R4]                    @ Write 
-
-  @ Initialise the first countdown
-
+  @ Initialise the static variables
   LDR     R4, =blink_countdown
   LDR     R5, =BLINK_PERIOD
   STR     R5, [R4]  
