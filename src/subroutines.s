@@ -114,7 +114,7 @@ clockwise_bliking:
 
 
   MOV   R1, R4
-  STR 	R3, =current_LED		@ Update current_LED
+  LDR 	R3, =current_LED		@ Update current_LED
   LDR   R1, [R3]
   BL 	  bliking			        @ Open
   BL 	  bliking   			    @ Close
