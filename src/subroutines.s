@@ -112,11 +112,13 @@ clockwise_bliking:
   CMP	  R4, #16
   BEQ	  reset
 
+
   MOV   R1, R4
   STR 	R3, =current_LED		@ Update current_LED
   LDR   R1, [R3]
   BL 	  bliking			        @ Open
   BL 	  bliking   			    @ Close
+
 
   B  	  loop
 
@@ -200,7 +202,7 @@ set_pins_for_output:
   ORR     R5, #0b01010101010101010000000000000000    @ 01 for each LED 
   STR     R5, [R4]                                   @ Write 
 
-  POP {R4, R5}
+  POP {R4, R5} R2
   BX LR
 
 @
@@ -271,5 +273,53 @@ delay_ms:
   
   POP   {R4-R5,PC}
 
-  .end
+
+@ set_up_button() - configure all the settings to use push button.
+@
+@ Args:
+@   None
+@ Return:
+@   None
+set_up_button:
+  PUSH  {R4-R5,LR}
+  @ Configure USER pushbutton (GPIO Port A Pin 0 on STM32F3 Discovery
+  @   kit) to use the EXTI0 external interrupt signal
+  @ Determined by bits 3..0 of the External Interrrupt Control
+  @   Register (EXTIICR)
+  @ STM32F303 Reference Manual 12.1.3 (pg. 249)
+  LDR     R4, =SYSCFG_EXTIICR1
+  LDR     R5, [R4]
+  BIC     R5, R5, #0b1111
+  STR     R5, [R4]
+
+  @ Enable (unmask) interrupts on external interrupt EXTI0
+  @ EXTI0 corresponds to bit 0 of the Interrupt Mask Register (IMR)
+  @ STM32F303 Reference Manual 14.3.1 (pg. 297)
+  LDR     R4, =EXTI_IMR
+  LDR     R5, [R4]
+  ORR     R5, R5, #1
+  STR     R5, [R4]
+
+  @ Set falling edge detection on EXTI0
+  @ EXTI0 corresponds to bit 0 of the Falling Trigger Selection
+  @   Register (FTSR)
+  @ STM32F303 Reference Manual 14.3.4 (pg. 298)
+  LDR     R4, =EXTI_FTSR
+  LDR     R5, [R4]
+  ORR     R5, R5, #1
+  STR     R5, [R4]
+
+  @ Enable NVIC interrupt channel (Nested Vectored Interrupt Controller)
+  @ EXTI0 corresponds to NVIC channel #6
+  @ Enable channels using the NVIC Interrupt Set Enable Register (ISER)
+  @ Writing a 1 to a bit enables the corresponding channel
+  @ Writing a 0 to a bit has no effect
+  @ STM32 Cortex-M4 Programming Manual 4.3.2 (pg. 210)
+  LDR     R4, =NVIC_ISER
+  MOV     R5, #(1<<6)
+  STR     R5, [R4]
+
+  POP   {R4-R5,PC}
+
+.end
 
