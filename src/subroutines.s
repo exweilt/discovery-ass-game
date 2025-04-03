@@ -113,7 +113,8 @@ clockwise_bliking:
   BEQ	  reset
 
   MOV   R1, R4
-  STR 	R1, =current_LED		@ Update current_LED
+  STR 	R3, =current_LED		@ Update current_LED
+  LDR   R1, [R3]
   BL 	  bliking			        @ Open
   BL 	  bliking   			    @ Close
 
@@ -130,19 +131,21 @@ clockwise_bliking:
 @
 
 level_up:
-  PUSH  {R4-R12,LR}
+  PUSH  {LR}
 
-  LDR	  R0, =Level
+  LDR	  R1, =Level
+  LDR   R0, [R1]
   ADD	  R0, R0, #1			@ Level Up
-  STR	  R0, =Level
+  STR	  R0, [R1]
 
-  LDR	  R0, =Time
+  LDR	  R1, =Time
+  LDR   R0, [R1]
   SUB	  R0, R0, #200			@ Reduce by 200 milisec
-  STR	  R0, =Time
+  STR	  R0, [R1]
 
   BL	  clockwise_bliking
 
-  POP  {R4-R12,PC}
+  POP  {PC}
 
 @   EXTIO_IRQHandler - Check if you lose or win the round
 @
@@ -158,9 +161,11 @@ EXTI0_IRQHandler:
 
   PUSH  {R4,R5,LR}			            @ Return R0 1 TRUE, 0 FALSE
 
-  LDR     R4, =current_LED        	@ Check current LED and correct LED
-  LDR     R5, =correct_LED
-  CMP	  R4, R5
+  LDR   R4, =current_LED        	@ Check current LED and correct LED
+  LDR   R1, [R4]
+  LDR   R5, =correct_LED
+  LDR   R2, [R5]
+  CMP	  R1, R2
   BEQ	  end
 
   MOV 	  R0, #0
