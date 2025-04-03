@@ -9,9 +9,12 @@
   .global Main
   .global SysTick_Handler
   .global EXTI0_IRQHandler
+  .global current_LED
+  .global correct_LED
 
   @ Definitions are in definitions.s to keep this file "clean"
   .include "definitions.s"
+  .include "subroutines.s"
 
   .equ    BLINK_PERIOD, 250
 
@@ -65,31 +68,7 @@ Main:
   MOV   R5, #0                        @
   STR   R5, [R4]                      @
 
-  @ Configure USER pushbutton (GPIO Port A Pin 0 on STM32F3 Discovery
-  @   kit) to use the EXTI0 external interrupt signal
-  @ Determined by bits 3..0 of the External Interrrupt Control
-  @   Register (EXTIICR)
-  LDR     R4, =SYSCFG_EXTIICR1
-  LDR     R5, [R4]
-  BIC     R5, R5, #0b1111
-  STR     R5, [R4]
-
-  @ Enable (unmask) interrupts on external interrupt Line0
-  LDR     R4, =EXTI_IMR
-  LDR     R5, [R4]
-  ORR     R5, R5, #1
-  STR     R5, [R4]
-
-  @ Set falling edge detection on Line0
-  LDR     R4, =EXTI_FTSR
-  LDR     R5, [R4]
-  ORR     R5, R5, #1
-  STR     R5, [R4]
-
-  @ Enable NVIC interrupt #6 (external interrupt Line0)
-  LDR     R4, =NVIC_ISER
-  MOV     R5, #(1<<6)
-  STR     R5, [R4]
+  BL set_up_button
 
   @ Nothing else to do in Main
   @ Idle loop forever (welcome to interrupts!!)
@@ -169,6 +148,14 @@ button_count:
   .space  4
 
 blink_countdown:
+  .space  4
+
+@ unsigned int 4 bytes range 8-15
+current_LED:
+  .space  4
+
+@ unsigned int 4 bytes range 8-15
+correct_LED:
   .space  4
 
   .end
