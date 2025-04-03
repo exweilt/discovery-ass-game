@@ -148,3 +148,37 @@ EXTI0_IRQHandler:
 
 
   .end
+
+
+@
+@ void set_pins_for_output()
+@
+@ Set every LED pin for output 
+@
+set_pins_for_output:
+  PUSH {R4, R5}
+  LDR     R4, =GPIOE_MODER
+  LDR     R5, [R4]                                   @ Read ...
+  BIC     R5, #0b11111111111111110000000000000000    @ clear 8 LEDs
+  ORR     R5, #0b01010101010101010000000000000000    @ 01 for each LED 
+  STR     R5, [R4]                                   @ Write 
+
+  POP {R4, R5}
+  BX LR
+
+@
+@ void set_gpio_port_e_clock()
+@
+@ Set GPIO port E clock on
+@
+set_gpio_port_e_clock:
+  PUSH {R4, R5}
+  
+  LDR     R4, =RCC_AHBENR
+  LDR     R5, [R4]
+  ORR     R5, R5, #(0b1 << (RCC_AHBENR_GPIOEEN_BIT))
+  STR     R5, [R4]
+
+  BX LR
+
+  
