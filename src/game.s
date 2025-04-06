@@ -26,8 +26,9 @@ Main:
 
   BL set_gpio_port_e_clock
 
-  @ So LEDs are set up to illuminate light
-  BL set_pins_for_output
+  BL set_pins_for_output  @ LEDs are set up to illuminate light
+
+  BL set_up_button
 
   @ Initialise the static variables
   LDR     R4, =blink_countdown
@@ -36,26 +37,26 @@ Main:
 
   @ Configure SysTick Timer to generate an interrupt every 1ms
 
-  LDR     R4, =SCB_ICSR               @ Clear any pre-existing interrupts
-  LDR     R5, =SCB_ICSR_PENDSTCLR     @
-  STR     R5, [R4]                    @
+  @ LDR     R4, =SCB_ICSR               @ Clear any pre-existing interrupts
+  @ LDR     R5, =SCB_ICSR_PENDSTCLR     @
+  @ STR     R5, [R4]                    @
 
-  LDR     R4, =SYSTICK_CSR            @ Stop SysTick timer
-  LDR     R5, =0                      @   by writing 0 to CSR
-  STR     R5, [R4]                    @   CSR is the Control and Status Register
+  @ LDR     R4, =SYSTICK_CSR            @ Stop SysTick timer
+  @ LDR     R5, =0                      @   by writing 0 to CSR
+  @ STR     R5, [R4]                    @   CSR is the Control and Status Register
   
-  LDR     R4, =SYSTICK_LOAD           @ Set SysTick LOAD for 1ms delay
-  LDR     R5, =7999                   @ Assuming 8MHz clock
-  STR     R5, [R4]                    @ 
+  @ LDR     R4, =SYSTICK_LOAD           @ Set SysTick LOAD for 1ms delay
+  @ LDR     R5, =7999                   @ Assuming 8MHz clock
+  @ STR     R5, [R4]                    @ 
 
-  LDR     R4, =SYSTICK_VAL            @   Reset SysTick internal counter to 0
-  LDR     R5, =0x1                    @     by writing any value
-  STR     R5, [R4]
+  @ LDR     R4, =SYSTICK_VAL            @   Reset SysTick internal counter to 0
+  @ LDR     R5, =0x1                    @     by writing any value
+  @ STR     R5, [R4]
 
-  LDR     R4, =SYSTICK_CSR            @   Start SysTick timer by setting CSR to 0x7
-  LDR     R5, =0x7                    @     set CLKSOURCE (bit 2) to system clock (1)
-  STR     R5, [R4]                    @     set TICKINT (bit 1) to 1 to enable interrupts
-                                      @     set ENABLE (bit 0) to 1
+  @ LDR     R4, =SYSTICK_CSR            @   Start SysTick timer by setting CSR to 0x7
+  @ LDR     R5, =0x7                    @     set CLKSOURCE (bit 2) to system clock (1)
+  @ STR     R5, [R4]                    @     set TICKINT (bit 1) to 1 to enable interrupts
+  @                                     @     set ENABLE (bit 0) to 1
 
 
   @
@@ -67,8 +68,6 @@ Main:
   LDR   R4, =button_count             @ count = 0;
   MOV   R5, #0                        @
   STR   R5, [R4]                      @
-
-  BL set_up_button
 
   @ Nothing else to do in Main
   @ Idle loop forever (welcome to interrupts!!)
@@ -177,6 +176,7 @@ EXTI0_IRQHandler:
   @ Return from interrupt handler
   POP  {R4,R5,PC}
 
+
 @     Takes R0 as number of wins
 blink_for_each_win:
   MOV   R1, #0
@@ -191,7 +191,7 @@ for_win_loop:
   ADD   R1, R1, #1
   B for_win_loop
 
-@   Global data
+@ ===============================  Global data ===============================
   .section .data
 button_count:
   .space  4
@@ -199,6 +199,7 @@ button_count:
 blink_countdown:
   .space  4
 
+@ TODO: change to 1 byte
 @ unsigned int 4 bytes range 8-15
 current_LED:
   .space  4
@@ -206,5 +207,23 @@ current_LED:
 @ unsigned int 4 bytes range 8-15
 correct_LED:
   .space  4
+
+@ time in ms since start of discovery.
+total_ms:
+  .space 4
+
+@ program_stage (1 byte) (u8)
+@
+@ enum: The current stage of the program
+@ Possible values:
+@   0: WAITING_FOR_SEED
+@   1: GAME_SKIPPING_SOME_TIME
+@   2: GAME_READY_FOR_INPUT
+@   3: GAME_FINISHED
+  .equ WAITING_FOR_SEED 0
+  .equ GAME_READY_FOR_INPUT 2
+  .equ GAME_FINISHED 3
+program_stage:
+  .space 1
 
   .end
