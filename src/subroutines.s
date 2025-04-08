@@ -405,3 +405,22 @@ set_next_target:
 
   POP {R4-R6, PC}
   
+
+@
+@ move_to_next_led()
+@
+move_to_next_led:
+  PUSH {R4-R6, LR}
+
+  LDR R4, =current_LED
+  LDR R5, [R4]
+  ADD R5, R5, #1
+  LDR R6, =15
+  CMP R5, R6
+  BLS .skip_circling
+  MOV R5, #8
+
+.skip_circling:
+  STR R5, [R4]
+
+  POP {R4-R6, PC}

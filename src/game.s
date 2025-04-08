@@ -32,6 +32,10 @@ Main:
   LDR     R5, =SCB_ICSR_PENDSTCLR
   STR     R5, [R4]
 
+  LDR R4, =current_LED
+  LDR R5, =8
+  STR R5, [R4]
+
   BL set_gpio_port_e_clock
 
   BL set_pins_for_output  @ LEDs are set up to illuminate light
@@ -93,7 +97,7 @@ End_Main:
 @
   .type  SysTick_Handler, %function
 SysTick_Handler:
-  PUSH  {R4-R7, LR}
+  PUSH  {R4-R8, LR}
 
   LDR   R4, =total_ms               @ total_ms = total_ms + current_period
   LDR   R5, [R4]
@@ -102,36 +106,41 @@ SysTick_Handler:
   ADD   R5, R5, R7
   STR   R5, [R4]
 
+  LDR   R4, =program_stage          @ program_stage: enum = load_byte(program_stage_ptr)
+  LDRB   R5, [R4]    
+  CMP   R5, #WAITING_FOR_SEED       @ if (program_stage == WAITING_FOR_SEED)
+  BNE   .tick.not_waiting_for_seed       @ {
+    
 
-@   LDR   R4, =blink_countdown        @ if (countdown != 0) {
-@   LDR   R5, [R4]                    @
-@   CMP   R5, #0                      @
-@   BEQ   .LelseFire                  @
+  B .tick.finish_handling_button          @ }
 
-@   SUB   R5, R5, #1                  @   countdown = countdown - 1;
-@   STR   R5, [R4]                    @
+.tick.not_waiting_for_seed:
+  @                                 @ else if (program_stage == GAME_ONGOING)
+  @                                 @ {
+  LDR     R4, =GPIOE_ODR
+  LDR     R5, [R4]                      @ Read ...
+  LDR     R6, =current_LED
+  LDR     R7, [R6]
+  LDR     R8, =1
+  LSL     R8, R8, R7
+  EOR     R5, R8         @ Modify ...
+  STR     R5, [R4]                      @ Write
 
-@   B     .LendIfDelay                @ }
+  BL move_to_next_led
 
-@ .LelseFire:                         @ else {
 
-@   LDR     R4, =GPIOE_ODR            @   Invert LD3
-@   LDR     R5, [R4]                  @
-@   EOR     R5, #(0b1<<(LD3_PIN))     @   GPIOE_ODR = GPIOE_ODR ^ (1<<LD3_PIN);
-@   STR     R5, [R4]                  @ 
+  @                                 @ }
 
-@   LDR     R4, =blink_countdown      @   countdown = BLINK_PERIOD;
-@   LDR     R5, =BLINK_PERIOD         @
-@   STR     R5, [R4]                  @
 
-@ .LendIfDelay:                       @ }
+.tick.finish_handling_button:
+
 
   LDR     R4, =SCB_ICSR             @ Clear (acknowledge) the interrupt
   LDR     R5, =SCB_ICSR_PENDSTCLR   @
   STR     R5, [R4]                  @
 
   @ Return from interrupt handler
-  POP  {R4-R7, PC}
+  POP  {R4-R8, PC}
 
 
 @
@@ -151,7 +160,9 @@ EXTI0_IRQHandler:
   STR   R8, [R6]                    @     *seed_ptr = total_ms 
   BL    set_next_target             @     set_next_target()
   LDR   R8, =GAME_ONGOING           @
-  STR   R8, [R4]                    @     *program_stage_ptr = GAME_ONGOING     
+  STR   R8, [R4]                    @     *program_stage_ptr = GAME_ONGOING
+  MOV   R0, #500
+  BL    set_tick_period             @     set_tick_period(1000)     
 
   B .finish_handling_button          @ }
 
