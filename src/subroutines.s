@@ -7,7 +7,11 @@
   .global   random
   .global EXTI0_IRQHandler
 
+  .extern current_LED
+  .extern current_period
+
   .include "definitions.s"
+  @ .include "game.s"
     
 
 @   Process Invitation
@@ -31,15 +35,15 @@ process_invitation:
 @
 random_number_generator:
   PUSH {R3, R4,LR}            
-.set_variables
+.set_variables:
   SUB   R3, R2, R1              @ range = max - min
   UDIV  R4, R2, R3              @ threshold = (max / range) * range;
   MUL   R4, R4, R3              @ 
-.generate_random_umber          @
+.generate_random_number:          @
   EOR   R0, R0, R0,  LSL #13    @ seed ^= seed << 13
   EOR   R0, R0, R0,  LSR #17    @ seed ^= seed >> 17
   EOR   R0, R0, R0,  LSL #5     @ seed ^= seed << 5
-.find_value                     @ do {
+.find_value:                     @ do {
   CMP   R0, R2                  @ random = generaterandomNumber();
   BGE   .generate_random_number @ while (random >= threshold); }// Reject values outside safe multiples 
   UDIV  R1, R0, R2              @ R1 = a / b
@@ -47,146 +51,149 @@ random_number_generator:
   SUB   R0, R0, R2              @ R0 = a - (a/b) * b (remainder in R2)
   POP {R3,R4,PC}
 
-@   Input handling
-@   Returns:
-@       R0 - 0 ifButtonNotPressed
-@       R0 - 1 ifButtonISPressed
-.type EXTI0_IRQHandler, %function
-EXTI0_IRQHandler:
-  PUSH  {R4,R5,LR}
-  @ Set button state to pressed
-  MOV   R0, #1
+@ @   Input handling
+@ @   Returns:
+@ @       R0 - 0 ifButtonNotPressed
+@ @       R0 - 1 ifButtonISPressed
+@ .type EXTI0_IRQHandler, %function
+@ EXTI0_IRQHandler:
+@   PUSH  {R4,R5,LR}
+@   @ Set button state to pressed
+@   MOV   R0, #1
     
-  @ Clear the interrupt pending bit
-  LDR   R4, =EXTI_PR
-  MOV   R5, #1
-  STR   R5, [R4]
-  POP   {R4,R5,PC}
+@   @ Clear the interrupt pending bit
+@   LDR   R4, =EXTI_PR
+@   MOV   R5, #1
+@   STR   R5, [R4]
+@   POP   {R4,R5,PC}
 
-@   Blinking - open/close LED
-@   
-@   Need input R1 (LED Number)
+@ @   Blinking - open/close LED
+@ @   
+@ @   Need input R1 (LED Number)
+@ @
+@ @   R4 Read GPIOE_ODR
+@ @   R5 Store GPIOE_ODR and make change
+@ @
+@ @   R6 R7 Calculations to change GPIOE_ODR
+
+@ bliking:
+@   PUSH  {R4-R12,LR}                     @ LED code in R1
+
+@   LDR     R4, =GPIOE_ODR
+@   LDR     R5, [R4]                      @ Read
+
+@   MOV     R6, #0b1                      @ Access LED
+@   LSL     R7, R6, R1
+
+@   EOR     R5, R7                        @ Modify
+@   STR     R5, [R4]                      @ Write
+
+@   BL      STICK_TIMER
+@   @ Need Access to Stick Timer (To check pause time)
 @
-@   R4 Read GPIOE_ODR
-@   R5 Store GPIOE_ODR and make change
-@
-@   R6 R7 Calculations to change GPIOE_ODR
-
-bliking:
-  PUSH  {R4-R12,LR}                     @ LED code in R1
-
-  LDR     R4, =GPIOE_ODR
-  LDR     R5, [R4]                      @ Read
-
-  MOV     R6, #0b1                      @ Access LED
-  LSL     R7, R6, R1
-
-  EOR     R5, R7                        @ Modify
-  STR     R5, [R4]                      @ Write
-
-  BL      STICK_TIMER
-  @ Need Access to Stick Timer (To check pause time)
-
-  POP  {R4-R12,PC}
-
-@   Clockwise Blinking - Blink in Clockwise
-@
-@   No input need
-@
-@   Use Blinking subroutine
-@
-@   R4 Current working LED
-@   R1 Update to current LED (To check Level (Level subroutine))
-@
-
-clockwise_bliking:
-  PUSH  {R4-R12,LR}
-
-.reset:
-
-  MOV	  R4, #7
-
-.loop:
-
-  ADD	  R4, R4, #1
-  CMP	  R4, #16
-  BEQ	  reset
+@   POP  {R4-R12,PC}
 
 
-  MOV   R1, R4
-  LDR 	R3, =current_LED		@ Update current_LED
-  LDR   R1, [R3]
-  BL 	  bliking			        @ Open
-  BL 	  bliking   			    @ Close
+@ @
+@ @   Clockwise Blinking - Blink in Clockwise
+@ @
+@ @   No input need
+@ @
+@ @   Use Blinking subroutine
+@ @
+@ @   R4 Current working LED
+@ @   R1 Update to current LED (To check Level (Level subroutine))
+@ @
+@ clockwise_bliking:
+@   PUSH  {R4-R12,LR}
+
+@ .reset:
+
+@   MOV	  R4, #7
+
+@ .loop:
+
+@   ADD	  R4, R4, #1
+@   CMP	  R4, #16
+@   BEQ	  .reset
 
 
-  B  	  loop
+@   MOV   R1, R4
+@   LDR 	R3, =current_LED		@ Update current_LED
+@   LDR   R1, [R3]
+@   BL 	  blinking			        @ Open
+@   BL 	  blinking   			    @ Close
 
-  POP  {R4-R12,PC}
 
-@   Level - Level Up Count
-@
-@   No input need
-@
-@   R0 Load Level and add 1 Level
-@   R0 Load Time break and reduce by 200ms
-@
+@   B  	  loop
 
-level_up:
-  PUSH  {LR}
+@   POP  {R4-R12,PC}
 
-  LDR	  R1, =Level
-  LDR   R0, [R1]
-  ADD	  R0, R0, #1			@ Level Up
-  STR	  R0, [R1]
+@ ==========================================================
 
-  LDR	  R1, =Time
-  LDR   R0, [R1]
-  SUB	  R0, R0, #200			@ Reduce by 200 milisec
-  STR	  R0, [R1]
+@ @   Level - Level Up Count
+@ @
+@ @   No input need
+@ @
+@ @   R0 Load Level and add 1 Level
+@ @   R0 Load Time break and reduce by 200ms
+@ @
 
-  BL	  clockwise_bliking
+@ level_up:
+@   PUSH  {LR}
 
-  POP  {PC}
+@   LDR	  R1, =Level
+@   LDR   R0, [R1]
+@   ADD	  R0, R0, #1			@ Level Up
+@   STR	  R0, [R1]
 
-@   EXTIO_IRQHandler - Check if you lose or win the round
-@
-@   No input need
-@
-@   The Exception Handler will automaticly called if bottom pressed
-@   R4 current LED load (save from Clockwise Blinking)
-@   R5 correct LED load (save from Random number)
-@   R0 R4 R5 For reset the Exception Handler
-@
+@   LDR	  R1, =Time
+@   LDR   R0, [R1]
+@   SUB	  R0, R0, #200			@ Reduce by 200 milisec
+@   STR	  R0, [R1]
 
-EXTI0_IRQHandler:
+@   BL	  clockwise_bliking
 
-  PUSH  {R4,R5,LR}			            @ Return R0 1 TRUE, 0 FALSE
+@   POP  {PC}
 
-  LDR   R4, =current_LED        	@ Check current LED and correct LED
-  LDR   R1, [R4]
-  LDR   R5, =correct_LED
-  LDR   R2, [R5]
-  CMP	  R1, R2
-  BEQ	  end
 
-  MOV 	  R0, #0
+@ ==========================================================
+
+
+@ @   EXTIO_IRQHandler - Check if you lose or win the round
+@ @
+@ @   No input need
+@ @
+@ @   The Exception Handler will automaticly called if bottom pressed
+@ @   R4 current LED load (save from Clockwise Blinking)
+@ @   R5 correct LED load (save from Random number)
+@ @   R0 R4 R5 For reset the Exception Handler
+@ @
+
+@ EXTI0_IRQHandler:
+
+@   PUSH  {R4,R5,LR}			            @ Return R0 1 TRUE, 0 FALSE
+
+@   LDR   R4, =current_LED        	@ Check current LED and correct LED
+@   LDR   R1, [R4]
+@   LDR   R5, =correct_LED
+@   LDR   R2, [R5]
+@   CMP	  R1, R2
+@   BEQ	  end
+
+@   MOV 	  R0, #0
 
 
 
-  MOV 	  R0, #1
+@   MOV 	  R0, #1
 
-  LDR   R4, =EXTI_PR      		@ Clear (acknowledge) the interrupt
-  MOV   R5, #(1<<0)       		
-  STR   R5, [R4]          		
+@   LDR   R4, =EXTI_PR      		@ Clear (acknowledge) the interrupt
+@   MOV   R5, #(1<<0)       		
+@   STR   R5, [R4]          		
 
-  POP  {R4,R5,PC}
+@   POP  {R4,R5,PC}
 
-
-
-
-
-end_game:
+@ end_game:
 
 
 @
@@ -195,15 +202,16 @@ end_game:
 @ Set every LED pin for output 
 @
 set_pins_for_output:
-  PUSH {R4, R5}
+  PUSH {R4-R6}
   LDR     R4, =GPIOE_MODER
   LDR     R5, [R4]                                   @ Read ...
-  BIC     R5, #0b11111111111111110000000000000000    @ clear 8 LEDs
-  ORR     R5, #0b01010101010101010000000000000000    @ 01 for each LED 
+  LDR     R6, =0b11111111111111110000000000000000
+  BIC     R5, R6                                     @ clear 8 LEDs
+  LDR     R6, =0b01010101010101010000000000000000
+  ORR     R5, R6                                     @ 01 for each LED 
   STR     R5, [R4]                                   @ Write 
 
-  POP {R4, R5} R2
-  BX LR
+  POP {R4-R6, PC}
 
 @
 @ void set_gpio_port_e_clock()
@@ -218,60 +226,63 @@ set_gpio_port_e_clock:
   ORR     R5, R5, #(0b1 << (RCC_AHBENR_GPIOEEN_BIT))
   STR     R5, [R4]
 
-  BX LR
+  POP {R4, R5, PC}
 
 
+@ WARNGING: (DEPRECATED) -> needs to become compatible with SysTick timer
+@ delay_ms subroutine
+@ Use the Cortex SysTick timer to wait for a specified number of milliseconds
+@
+@ See Yiu, Joseph, "The Definitive Guide to the ARM Cortex-M3 and Cortex-M4
+@   Processors", 3rd edition, Chapter 9.
+@
+@ Parameters:
+@   R0: delay - time to wait in ms
+@
+@ Return:
+@   None
+delay_ms:
+  PUSH  {R4-R5,LR}
 
-@ @ delay_ms subroutine (DEPRECATED)
-@ @ Use the Cortex SysTick timer to wait for a specified number of milliseconds
-@ @
-@ @ See Yiu, Joseph, "The Definitive Guide to the ARM Cortex-M3 and Cortex-M4
-@ @   Processors", 3rd edition, Chapter 9.
-@ @
-@ @ Parameters:
-@ @   R0: delay - time to wait in ms
-@ @
-@ @ Return:
-@ @   None
-@ delay_ms:
-@   PUSH  {R4-R5,LR}
+  LDR   R4, =current_period
+  STR   R0, [R4]
 
-@   LDR   R4, =SYSTICK_CSR            @ Stop SysTick timer
-@   LDR   R5, =0                      @   by writing 0 to CSR
-@   STR   R5, [R4]                    @   CSR is the Control and Status Register
+  LDR   R4, =SYSTICK_CSR            @ Stop SysTick timer
+  LDR   R5, =0                      @   by writing 0 to CSR
+  STR   R5, [R4]                    @   CSR is the Control and Status Register
   
-@   LDR   R4, =SYSTICK_LOAD           @ Set SysTick LOAD for 1ms delay
-@   LDR   R5, =7999                   @ Assuming a 8MHz clock
-@   STR   R5, [R4]                    @ 
+  LDR   R4, =SYSTICK_LOAD           @ Set SysTick LOAD for 1ms delay
+  LDR   R5, =7999                   @ Assuming a 8MHz clock
+  STR   R5, [R4]                    @ 
   
-@   LDR   R4, =SYSTICK_VAL            @ Reset SysTick internal counter to 0
-@   LDR   R5, =0x1                    @   by writing any value
-@   STR   R5, [R4]  
+  LDR   R4, =SYSTICK_VAL            @ Reset SysTick internal counter to 0
+  LDR   R5, =0x1                    @   by writing any value
+  STR   R5, [R4]  
 
-@   LDR   R4, =SYSTICK_CSR            @ Start SysTick timer by setting CSR to 0x5
-@   LDR   R5, =0x5                    @   set CLKSOURCE (bit 2) to system clock (1)
-@   STR   R5, [R4]                    @   set ENABLE (bit 0) to 1
+  LDR   R4, =SYSTICK_CSR            @ Start SysTick timer by setting CSR to 0x5
+  LDR   R5, =0x5                    @   set CLKSOURCE (bit 2) to system clock (1)
+  STR   R5, [R4]                    @   set ENABLE (bit 0) to 1
 
-@ .LwhDelay:                          @ while (delay != 0) {
-@   CMP   R0, #0  
-@   BEQ   .LendwhDelay  
+.LwhDelay:                          @ while (delay != 0) {
+  CMP   R0, #0  
+  BEQ   .LendwhDelay  
   
-@ .Lwait:
-@   LDR   R5, [R4]                    @   Repeatedly load the CSR and check bit 16
-@   AND   R5, #0x10000                @   Loop until bit 16 is 1, indicating that
-@   CMP   R5, #0                      @     the SysTick internal counter has counted
-@   BEQ   .Lwait                      @     from 0x3E7F down to 0 and 1ms has elapsed 
+.Lwait:
+  LDR   R5, [R4]                    @   Repeatedly load the CSR and check bit 16
+  AND   R5, #0x10000                @   Loop until bit 16 is 1, indicating that
+  CMP   R5, #0                      @     the SysTick internal counter has counted
+  BEQ   .Lwait                      @     from 0x3E7F down to 0 and 1ms has elapsed 
 
-@   SUB   R0, R0, #1                  @   delay = delay - 1
-@   B     .LwhDelay                   @ }
+  SUB   R0, R0, #1                  @   delay = delay - 1
+  B     .LwhDelay                   @ }
 
-@ .LendwhDelay:
+.LendwhDelay:
 
-@   LDR   R4, =SYSTICK_CSR            @ Stop SysTick timer
-@   LDR   R5, =0                      @   by writing 0 to CSR
-@   STR   R5, [R4]                    @   CSR is the Control and Status Register
+  LDR   R4, =SYSTICK_CSR            @ Stop SysTick timer
+  LDR   R5, =0                      @   by writing 0 to CSR
+  STR   R5, [R4]                    @   CSR is the Control and Status Register
   
-@   POP   {R4-R5,PC}
+  POP   {R4-R5,PC}
 
 @ =============================================================================================
 
@@ -307,7 +318,7 @@ set_tick_period:
   STR   R5, [R4]  
 
   LDR   R4, =SYSTICK_CSR            @ Start SysTick timer by setting CSR to 0x5
-  LDR   R5, =0x5                    @   set CLKSOURCE (bit 2) to system clock (1)
+  LDR   R5, =0x7                    @   set CLKSOURCE (bit 2) to system clock (1)
   STR   R5, [R4]                    @   set ENABLE (bit 0) to 1
 
   
@@ -359,6 +370,3 @@ set_up_button:
   STR     R5, [R4]
 
   POP   {R4-R5,PC}
-
-.end
-
