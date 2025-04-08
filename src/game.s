@@ -13,6 +13,10 @@
   .global correct_LED
   .global current_period
 
+  .extern set_gpio_port_e_clock
+  .extern set_pins_for_output
+  .extern set_up_button
+
   @ Definitions are in definitions.s to keep this file "clean"
   .include "definitions.s"
   .include "subroutines.s"
@@ -34,7 +38,7 @@ Main:
 
   BL set_up_button
 
-  @ Configure SysTick Timer to generate an interrupt every 1 ms to count time for seed.
+  @ @ Configure SysTick Timer to generate an interrupt every 1 ms to count time for seed.
   MOV R0, #1
   BL set_tick_period                  @ set_tick_period(1)
 
@@ -89,7 +93,7 @@ End_Main:
 @
   .type  SysTick_Handler, %function
 SysTick_Handler:
-  PUSH  {R4, R5, LR}
+  PUSH  {R4-R7, LR}
 
   LDR   R4, =total_ms               @ total_ms = total_ms + current_period
   LDR   R5, [R4]
@@ -122,13 +126,51 @@ SysTick_Handler:
 
 @ .LendIfDelay:                       @ }
 
-@   LDR     R4, =SCB_ICSR             @ Clear (acknowledge) the interrupt
-@   LDR     R5, =SCB_ICSR_PENDSTCLR   @
-@   STR     R5, [R4]                  @
+  LDR     R4, =SCB_ICSR             @ Clear (acknowledge) the interrupt
+  LDR     R5, =SCB_ICSR_PENDSTCLR   @
+  STR     R5, [R4]                  @
 
   @ Return from interrupt handler
   POP  {R4-R7, PC}
 
+
+@
+@ External interrupt line 0 (EXTI0) interrupt handler
+@
+  .type  EXTI0_IRQHandler, %function
+EXTI0_IRQHandler:
+  PUSH  {R4,R5,LR}
+
+  LDR   R4, =program_stage          @ program_stage: enum = load_byte(program_stage_ptr)
+  LDRB   R5, [R4]    
+  CMP   R5, #WAITING_FOR_SEED       @ if (program_stage == WAITING_FOR_SEED)
+  BNE   .not_waiting_for_seed       @ {
+  LDR   R7, =total_ms               @     <$r8>total_ms = *total_ms_ptr
+  LDR   R8, [R7]
+  LDR   R6, =seed                  @     
+  STR   R8, [R6]                    @     *seed_ptr = total_ms 
+  BL    set_next_target             @     set_next_target()
+  LDR   R8, =GAME_ONGOING           @
+  STR   R8, [R4]                    @     *program_stage_ptr = GAME_ONGOING     
+
+  B .finish_handling_button          @ }
+
+.not_waiting_for_seed:
+  @                                 @ else if ()
+  @                                 @ {
+  @                                 @ }
+
+
+.finish_handling_button:
+  @ Tell microcontroller that we have handled the EXTI0 interrupt
+  @ By writing a 1 to bit 0 of the EXTI Pending Register (PR)
+  @ (Writing 0s to bits has no effect)
+  @ STM32F303 Reference Manual 14.3.6 (pg. 299)
+  LDR   R4, =EXTI_PR      @ Clear (acknowledge) the interrupt
+  MOV   R5, #(1<<0)       @
+  STR   R5, [R4]          @
+  @ Return from interrupt handler
+  POP  {R4,R5,PC}
 
 
 @ @
@@ -167,8 +209,14 @@ SysTick_Handler:
 @   ADD   R1, R1, #1
 @   B for_win_loop
 
+
 @ ===============================  Global data ===============================
   .section .data
+
+.equ MAX_SEED_VALUE, 4294967295
+seed:
+  .space 4
+
 button_count:
   .space  4
 
@@ -198,10 +246,10 @@ current_period:
 @ Possible values:
 @   0: WAITING_FOR_SEED
 @   1: GAME_SKIPPING_SOME_TIME
-@   2: GAME_READY_FOR_INPUT
+@   2: GAME_ONGOING
 @   3: GAME_FINISHED
   .equ WAITING_FOR_SEED, 0
-  .equ GAME_READY_FOR_INPUT, 2
+  .equ GAME_ONGOING, 2
   .equ GAME_FINISHED, 3
 program_stage:
   .space 1

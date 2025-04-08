@@ -5,7 +5,10 @@
   
   .global   process_invitation
   .global   random
-  .global EXTI0_IRQHandler
+  @ .global EXTI0_IRQHandler
+  .global set_gpio_port_e_clock
+  .global set_pins_for_output
+  .global set_up_button
 
   .extern current_LED
   .extern current_period
@@ -34,21 +37,22 @@ process_invitation:
 @   
 @
 random_number_generator:
-  PUSH {R3, R4,LR}            
-.set_variables:
-  SUB   R3, R2, R1              @ range = max - min
-  UDIV  R4, R2, R3              @ threshold = (max / range) * range;
-  MUL   R4, R4, R3              @ 
-.generate_random_number:          @
-  EOR   R0, R0, R0,  LSL #13    @ seed ^= seed << 13
-  EOR   R0, R0, R0,  LSR #17    @ seed ^= seed >> 17
-  EOR   R0, R0, R0,  LSL #5     @ seed ^= seed << 5
-.find_value:                     @ do {
-  CMP   R0, R2                  @ random = generaterandomNumber();
-  BGE   .generate_random_number @ while (random >= threshold); }// Reject values outside safe multiples 
-  UDIV  R1, R0, R2              @ R1 = a / b
-  MUL   R2, R1, R2              @ R2 = (a/b) * b
-  SUB   R0, R0, R2              @ R0 = a - (a/b) * b (remainder in R2)
+  PUSH {R3, R4,LR}    
+  MOV R0, #11        
+@ .set_variables:
+@   SUB   R3, R2, R1              @ range = max - min
+@   UDIV  R4, R2, R3              @ threshold = (max / range) * range;
+@   MUL   R4, R4, R3              @ 
+@ .generate_random_number:          @
+@   EOR   R0, R0, R0,  LSL #13    @ seed ^= seed << 13
+@   EOR   R0, R0, R0,  LSR #17    @ seed ^= seed >> 17
+@   EOR   R0, R0, R0,  LSL #5     @ seed ^= seed << 5
+@ .find_value:                     @ do {
+@   CMP   R0, R2                  @ random = generaterandomNumber();
+@   BGE   .generate_random_number @ while (random >= threshold); }// Reject values outside safe multiples 
+@   UDIV  R1, R0, R2              @ R1 = a / b
+@   MUL   R2, R1, R2              @ R2 = (a/b) * b
+@   SUB   R0, R0, R2              @ R0 = a - (a/b) * b (remainder in R2)
   POP {R3,R4,PC}
 
 @ @   Input handling
@@ -202,7 +206,7 @@ random_number_generator:
 @ Set every LED pin for output 
 @
 set_pins_for_output:
-  PUSH {R4-R6}
+  PUSH {R4-R6, LR}
   LDR     R4, =GPIOE_MODER
   LDR     R5, [R4]                                   @ Read ...
   LDR     R6, =0b11111111111111110000000000000000
@@ -219,7 +223,7 @@ set_pins_for_output:
 @ Set GPIO port E clock on
 @
 set_gpio_port_e_clock:
-  PUSH {R4, R5}
+  PUSH {R4, R5, LR}
   
   LDR     R4, =RCC_AHBENR
   LDR     R5, [R4]
@@ -303,6 +307,9 @@ set_tick_period:
   @ LDR   R5, =SCB_ICSR_PENDSTCLR     @
   @ STR   R5, [R4]
 
+  LDR   R4, =current_period
+  STR   R0, [R4]
+
   LDR   R4, =SYSTICK_CSR            @ Stop SysTick timer
   LDR   R5, =0                      @   by writing 0 to CSR
   STR   R5, [R4]                    @   CSR is the Control and Status Register
@@ -370,3 +377,31 @@ set_up_button:
   STR     R5, [R4]
 
   POP   {R4-R5,PC}
+
+
+@
+@ set_next_target()
+@
+set_next_target:
+  PUSH {R4-R6, LR}
+
+  LDR   R4, =seed     @ R4 = seed_ptr
+  LDR   R5, [R4]      @ R5 seed = *seed_ptr 
+
+  MOV   R0, R5
+  MOV   R1, #8
+  MOV   R2, #15
+  BL    random_number_generator     @     rand: int = random_number_generator(seed, 8, 15)
+
+  LDR   R6, =correct_LED
+  STR   R0, [R6]                    @     *correct_LED  = rand
+
+  MOV   R0, R5
+  MOV   R1, #0
+  LDR   R2, =MAX_SEED_VALUE
+  BL    random_number_generator     @     new_seed: int = random_number_generator(8, 15)
+
+  STR   R0, [R4]                      @     *seed = new_seed
+
+  POP {R4-R6, PC}
+  
