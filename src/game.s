@@ -21,12 +21,11 @@
   .include "definitions.s"
   .include "subroutines.s"
 
-  .equ    INVITATION_BLINK_PERIOD, 1000
 
   .section .text
 
 Main:
-  PUSH  {R4-R5,LR}
+  PUSH  {R4-R6,LR}
 
   LDR     R4, =SCB_ICSR               @ Clear any pre-existing interrupts for SysTick Timer
   LDR     R5, =SCB_ICSR_PENDSTCLR
@@ -36,11 +35,19 @@ Main:
   LDR R5, =8
   STR R5, [R4]
 
+
   BL set_gpio_port_e_clock
 
   BL set_pins_for_output  @ LEDs are set up to illuminate light
 
   BL set_up_button
+
+  LDR     R4, =GPIOE_ODR
+  LDR     R5, [R4]                      @ Read ...
+  @ LDR     R6, =11101111111111111
+  LDR     R6, =0b1010101000000000
+  EOR     R5, R6                    @ Modify ...
+  STR     R6, [R4]                      @ Write
 
   @ @ Configure SysTick Timer to generate an interrupt every 1 ms to count time for seed.
   MOV R0, #1
@@ -88,7 +95,7 @@ Idle_Loop:
 
 
 End_Main:
-  POP   {R4-R5,PC}
+  POP   {R4-R6,PC}
 
 
 
@@ -110,7 +117,21 @@ SysTick_Handler:
   LDRB   R5, [R4]    
   CMP   R5, #WAITING_FOR_SEED       @ if (program_stage == WAITING_FOR_SEED)
   BNE   .tick.not_waiting_for_seed       @ {
-    
+
+  LDR   R4, =invitation_timer
+  LDR   R5, [R4]
+  ADD   R5, R5, R7
+  STR   R5, [R4]
+  CMP   R5, #1000
+  BLO   .skip_updating_screen
+  MOV   R5, #0
+  STR   R5, [R4]
+  LDR     R4, =GPIOE_ODR
+  LDR     R5, [R4]                      @ Read ...
+  LDR     R8, =0b1111111100000000
+  EOR     R5, R8                        @ Modify ...
+  STR     R5, [R4]                      @ Write
+.skip_updating_screen:
 
   B .tick.finish_handling_button          @ }
 
@@ -232,6 +253,10 @@ button_count:
   .space  4
 
 blink_countdown:
+  .space  4
+
+.equ    INVITATION_BLINK_PERIOD, 1000
+invitation_timer:
   .space  4
 
 @ TODO: change to 1 byte
