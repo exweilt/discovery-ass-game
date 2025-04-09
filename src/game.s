@@ -138,12 +138,16 @@ SysTick_Handler:
   BL      turn_off_all_led
   LDR     R4, =GPIOE_ODR
   LDR     R5, [R4]                      @ Read ...
+
   LDR     R6, =current_LED
   LDR     R7, [R6]
-  LDR     R8, =1
-  LSL     R8, R8, R7
-  EOR     R5, R8         @ Modify ...
-  STR     R5, [R4]                      @ Write
+  MOV     R0, R7
+  BL      turn_on_led
+
+  LDR     R6, =correct_LED
+  LDR     R7, [R6]
+  MOV     R0, R7
+  BL      turn_on_led
 
   BL move_to_next_led
 
