@@ -111,7 +111,7 @@ SysTick_Handler:
   STR   R5, [R4]
 
   LDR   R4, =program_stage          @ program_stage: enum = load_byte(program_stage_ptr)
-  LDRB   R5, [R4]    
+  LDR   R5, [R4]    
   CMP   R5, #WAITING_FOR_SEED       @ if (program_stage == WAITING_FOR_SEED)
   BNE   .tick.not_waiting_for_seed       @ {
 
@@ -175,7 +175,7 @@ EXTI0_IRQHandler:
   PUSH  {R4-R10,LR}
 
   LDR   R4, =program_stage          @ program_stage: enum = load_byte(program_stage_ptr)
-  LDRB   R5, [R4]    
+  LDR   R5, [R4]    
   CMP   R5, #WAITING_FOR_SEED       @ if (program_stage == WAITING_FOR_SEED)
   BNE   .not_waiting_for_seed       @ {
   LDR   R7, =total_ms               @     <$r8>total_ms = *total_ms_ptr
@@ -206,7 +206,7 @@ EXTI0_IRQHandler:
 
 .miss:
   @                                 @ }
-
+  BL reset_game
 
 .finish_handling_button:
   @ Tell microcontroller that we have handled the EXTI0 interrupt
@@ -291,7 +291,7 @@ total_ms:
 current_period:
   .space 4
 
-@ program_stage (1 byte) (u8)
+@ program_stage (4 bytes) (u8)
 @
 @ enum: The current stage of the program
 @ Possible values:
@@ -303,7 +303,7 @@ current_period:
   .equ GAME_ONGOING, 2
   .equ GAME_FINISHED, 3
 program_stage:
-  .space 1
+  .space 4
 
   .equ MAX_LEVEL, 29
 levels:

@@ -495,10 +495,6 @@ tmp_random_int:
 @
 @ increase_level()
 @
-@ Arguments
-@
-@ R0  led pin to enable (8-15 inclusive)
-@
 increase_level:
   PUSH {R4-R6, LR}
 
@@ -519,3 +515,26 @@ increase_level:
 .skip_increasing_level:
 
   POP {R4-R6, PC}
+
+
+@
+@ reset_game()
+@
+reset_game:
+  PUSH {R4-R5, LR}
+
+  LDR R4, =level
+  LDR R5, =0
+  STR R5, [R4]
+  
+  LDR R4, =levels
+  LDR R0, [R4]
+  BL set_tick_period
+
+  LDR R4, =current_LED
+  LDR R5, =8
+  STR R5, [R4]
+
+  BL set_next_target
+
+  POP {R4-R5, PC}
