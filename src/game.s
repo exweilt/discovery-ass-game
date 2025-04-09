@@ -201,6 +201,7 @@ EXTI0_IRQHandler:
   BNE .miss
 .hit:
   BL set_next_target
+  BL increase_level
   B .finish_handling_button
 
 .miss:
@@ -303,5 +304,14 @@ current_period:
   .equ GAME_FINISHED, 3
 program_stage:
   .space 1
+
+  .equ MAX_LEVEL, 29
+levels:
+  .word 500, 450, 400, 350, 310, 280, 260, 240, 220, 200
+  .word 180, 160, 150, 140, 130, 125, 120, 115, 110, 105
+  .word 100, 95,  90,  85,  80,  75,  70,  65,  60,  50
+
+level:
+  .zero 4
 
   .end

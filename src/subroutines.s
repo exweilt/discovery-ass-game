@@ -490,3 +490,32 @@ tmp_random_int:
     ADD     R0, R0, R1        @ R0 = remainder + min (final result)
 
     POP     {R3-R5, PC}       @ Restore registers and return
+
+
+@
+@ increase_level()
+@
+@ Arguments
+@
+@ R0  led pin to enable (8-15 inclusive)
+@
+increase_level:
+  PUSH {R4-R6, LR}
+
+  LDR R4, =level
+  LDR R5, [R4]
+  LDR R6, =MAX_LEVEL
+  
+
+  CMP R5, R6
+  BHS .skip_increasing_level
+  ADD R5, R5, #1
+  STR R5, [R4]
+
+  LDR R6, =levels
+  LDR R0, [R6, R5, LSL 2]
+  BL set_tick_period
+
+.skip_increasing_level:
+
+  POP {R4-R6, PC}
