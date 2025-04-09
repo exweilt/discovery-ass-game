@@ -396,12 +396,12 @@ set_next_target:
   LDR   R6, =correct_LED
   STR   R0, [R6]                    @     *correct_LED  = rand
 
-  MOV   R0, R4
-  MOV   R1, #0
-  LDR   R2, =MAX_SEED_VALUE
-  BL    tmp_random_int     @     new_seed: int = random_number_generator(8, 15)
+  @ MOV   R0, R4
+  @ MOV   R1, #0
+  @ LDR   R2, =MAX_SEED_VALUE
+  @ BL    tmp_random_int     @     new_seed: int = random_number_generator(8, 15)
 
-  STR   R0, [R4]                      @     *seed = new_seed
+  @ STR   R0, [R4]                      @     *seed = new_seed
 
   POP {R4-R6, PC}
   

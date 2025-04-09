@@ -139,6 +139,8 @@ SysTick_Handler:
   LDR     R4, =GPIOE_ODR
   LDR     R5, [R4]                      @ Read ...
 
+  BL move_to_next_led
+
   LDR     R6, =current_LED
   LDR     R7, [R6]
   MOV     R0, R7
@@ -149,7 +151,6 @@ SysTick_Handler:
   MOV     R0, R7
   BL      turn_on_led
 
-  BL move_to_next_led
 
 
   @                                 @ }
@@ -171,7 +172,7 @@ SysTick_Handler:
 @
   .type  EXTI0_IRQHandler, %function
 EXTI0_IRQHandler:
-  PUSH  {R4,R5,LR}
+  PUSH  {R4-R10,LR}
 
   LDR   R4, =program_stage          @ program_stage: enum = load_byte(program_stage_ptr)
   LDRB   R5, [R4]    
@@ -190,8 +191,19 @@ EXTI0_IRQHandler:
   B .finish_handling_button          @ }
 
 .not_waiting_for_seed:
-  @                                 @ else if ()
+  @                                 @ else if (program_stage == GAME_ONGOING)
   @                                 @ {
+  LDR R6, =current_LED
+  LDR R7, [R6]
+  LDR R8, =correct_LED
+  LDR R9, [R8]
+  CMP R7, R9
+  BNE .miss
+.hit:
+  BL set_next_target
+  B .finish_handling_button
+
+.miss:
   @                                 @ }
 
 
@@ -204,7 +216,7 @@ EXTI0_IRQHandler:
   MOV   R5, #(1<<0)       @
   STR   R5, [R4]          @
   @ Return from interrupt handler
-  POP  {R4,R5,PC}
+  POP  {R4-R10,PC}
 
 
 @ @
