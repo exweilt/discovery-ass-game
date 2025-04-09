@@ -388,18 +388,18 @@ set_next_target:
   LDR   R4, =seed     @ R4 = seed_ptr
   LDR   R5, [R4]      @ R5 seed = *seed_ptr 
 
-  MOV   R0, R5
+  MOV   R0, R4
   MOV   R1, #8
   MOV   R2, #15
-  BL    random_number_generator     @     rand: int = random_number_generator(seed, 8, 15)
+  BL    tmp_random_int     @     rand: int = random_number_generator(seed, 8, 15)
 
   LDR   R6, =correct_LED
   STR   R0, [R6]                    @     *correct_LED  = rand
 
-  MOV   R0, R5
+  MOV   R0, R4
   MOV   R1, #0
   LDR   R2, =MAX_SEED_VALUE
-  BL    random_number_generator     @     new_seed: int = random_number_generator(8, 15)
+  BL    tmp_random_int     @     new_seed: int = random_number_generator(8, 15)
 
   STR   R0, [R4]                      @     *seed = new_seed
 
@@ -456,3 +456,37 @@ turn_on_led:
   STR     R5, [R4]
 
   POP {R4-R6, PC}
+
+
+@ Subroutine: Generates a pseudo-random integer in [min, max] using LCG
+@ Inputs:
+@   R0: Pointer to the current seed (uint32_t*)
+@   R1: Minimum value (inclusive)
+@   R2: Maximum value (inclusive)
+@ Output:
+@   R0: Random integer in [min, max]
+@ Modifies:
+@   R3, R4, R5 (saved/restored via stack)
+tmp_random_int:
+    PUSH    {R3-R5, LR}       @ Save registers and return address
+
+    @ --- Step 1: Update the seed using LCG ---
+    @ LCG formula: new_seed = (a * seed + c) mod 2^32
+    @ Constants (a=1664525, c=1013904223)
+    LDR     R3, [R0]          @ Load current seed into R3
+    LDR     R4, =1664525      @ Load multiplier (a)
+    MUL     R3, R3, R4        @ R3 = seed * a
+    LDR     R4, =1013904223   @ Load increment (c)
+    ADD     R3, R3, R4        @ R3 = new_seed (a*seed + c)
+    STR     R3, [R0]          @ Store updated seed back to memory
+
+    @ --- Step 2: Compute range_size = max - min + 1 ---
+    SUB     R4, R2, R1        @ R4 = max - min
+    ADD     R4, R4, #1        @ R4 = range_size (max - min + 1)
+
+    @ --- Step 3: Scale new_seed to [min, max] ---
+    UDIV    R5, R3, R4        @ R5 = new_seed / range_size (quotient)
+    MLS     R0, R4, R5, R3    @ R0 = new_seed - (range_size * quotient) = remainder
+    ADD     R0, R0, R1        @ R0 = remainder + min (final result)
+
+    POP     {R3-R5, PC}       @ Restore registers and return
