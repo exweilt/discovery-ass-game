@@ -424,3 +424,16 @@ move_to_next_led:
   STR R5, [R4]
 
   POP {R4-R6, PC}
+
+
+@
+@ turn_off_all_led()
+@
+turn_off_all_led:
+  PUSH {R4-R5, LR}
+
+  LDR     R4, =GPIOE_ODR
+  LDR     R5, =0
+  STR     R5, [R4]
+
+  POP {R4-R5, PC}

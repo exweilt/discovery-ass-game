@@ -43,10 +43,7 @@ Main:
   BL set_up_button
 
   LDR     R4, =GPIOE_ODR
-  LDR     R5, [R4]                      @ Read ...
-  @ LDR     R6, =11101111111111111
   LDR     R6, =0b1010101000000000
-  EOR     R5, R6                    @ Modify ...
   STR     R6, [R4]                      @ Write
 
   @ @ Configure SysTick Timer to generate an interrupt every 1 ms to count time for seed.
@@ -138,6 +135,7 @@ SysTick_Handler:
 .tick.not_waiting_for_seed:
   @                                 @ else if (program_stage == GAME_ONGOING)
   @                                 @ {
+  BL      turn_off_all_led
   LDR     R4, =GPIOE_ODR
   LDR     R5, [R4]                      @ Read ...
   LDR     R6, =current_LED
