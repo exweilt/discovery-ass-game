@@ -141,17 +141,18 @@ SysTick_Handler:
 
   BL move_to_next_led
 
+  LDR     R8, =correct_LED
+  LDR     R9, [R8]
   LDR     R6, =current_LED
   LDR     R7, [R6]
+
+  CMP     R7, R9                    @ Avoid blink conflic
+  BEQ     continue
+
   MOV     R0, R7
   BL      turn_on_led
 
-  LDR     R6, =correct_LED
-  LDR     R7, [R6]
-  MOV     R0, R7
-  BL      turn_on_led
-
-
+continue:
 
   @                                 @ }
 
