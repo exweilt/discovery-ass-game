@@ -24,36 +24,35 @@ process_invitation:
 
     POP {PC}
 
-
-@   Random - generate random integer.
-@   
+@   Random Number Subroutine - generate random integer.
 @   Args:
-@       R0 - seed (unsigned int) 32 bits
-@       R1 - lower range boundary (unsigned int) 32 bits
-@       R2 - upper range boundary (unsigned int) 32 bits
-@
+@     R0: Pointer to the current seed (uint32_t*)
+@     R1: Minimum value (inclusive)
+@     R2: Maximum value (inclusive)
 @   Returns:
-@       R0 - random unsigned integer between R1 and R2 (unsigned int) 32 bits
-@   
-@
-random_number_generator:
-  PUSH {R3, R4,LR}    
-  MOV R0, #11        
-@ .set_variables:
-@   SUB   R3, R2, R1              @ range = max - min
-@   UDIV  R4, R2, R3              @ threshold = (max / range) * range;
-@   MUL   R4, R4, R3              @ 
-@ .generate_random_number:          @
-@   EOR   R0, R0, R0,  LSL #13    @ seed ^= seed << 13
-@   EOR   R0, R0, R0,  LSR #17    @ seed ^= seed >> 17
-@   EOR   R0, R0, R0,  LSL #5     @ seed ^= seed << 5
-@ .find_value:                     @ do {
-@   CMP   R0, R2                  @ random = generaterandomNumber();
-@   BGE   .generate_random_number @ while (random >= threshold); }// Reject values outside safe multiples 
-@   UDIV  R1, R0, R2              @ R1 = a / b
-@   MUL   R2, R1, R2              @ R2 = (a/b) * b
-@   SUB   R0, R0, R2              @ R0 = a - (a/b) * b (remainder in R2)
-  POP {R3,R4,PC}
+@     R0: Random unsigned integer 
+
+random_int:
+    PUSH    {R3-R5, LR}       
+
+    @ Formula used is: new_seed = (a * seed + c) mod 2^32
+    @ Constants (a=1664525, c=1013904223)
+    LDR     R3, [R0]          @ Load current seed into R3
+    LDR     R4, =1664525      @ Load multiplier (a)
+    MUL     R3, R3, R4        @ R3 = seed * a
+    LDR     R4, =1013904223   @ Load increment (c)
+    ADD     R3, R3, R4        @ R3 = new_seed (a*seed + c)
+    STR     R3, [R0]          @ Store updated seed back to memory
+
+    SUB     R4, R2, R1        @ R4 = max - min
+    ADD     R4, R4, #1        @ R4 = range_size (max - min + 1)
+
+    UDIV    R5, R3, R4        @ R5 = new_seed / range_size (quotient)
+    MUL     R4, R4, R5        @ R4 = (range_size * quotient) 
+    SUB     R0, R3, R4        @ R0 = new_seed - (range_size * quotient) = remainder
+    ADD     R0, R0, R1        @ R0 = remainder + min (final result)
+
+    POP     {R3-R5, PC}       @ Restore registers and return
 
 @ @   Input handling
 @ @   Returns:
@@ -391,7 +390,7 @@ set_next_target:
   MOV   R0, R4
   MOV   R1, #8
   MOV   R2, #15
-  BL    tmp_random_int     @     rand: int = random_number_generator(seed, 8, 15)
+  BL    andom_int     @     rand: int = random_number_generator(seed, 8, 15)
 
   LDR   R6, =correct_LED
   STR   R0, [R6]                    @     *correct_LED  = rand
@@ -458,38 +457,7 @@ turn_on_led:
   POP {R4-R6, PC}
 
 
-@ Subroutine: Generates a pseudo-random integer in [min, max] using LCG
-@ Inputs:
-@   R0: Pointer to the current seed (uint32_t*)
-@   R1: Minimum value (inclusive)
-@   R2: Maximum value (inclusive)
-@ Output:
-@   R0: Random integer in [min, max]
-@ Modifies:
-@   R3, R4, R5 (saved/restored via stack)
-tmp_random_int:
-    PUSH    {R3-R5, LR}       @ Save registers and return address
 
-    @ --- Step 1: Update the seed using LCG ---
-    @ LCG formula: new_seed = (a * seed + c) mod 2^32
-    @ Constants (a=1664525, c=1013904223)
-    LDR     R3, [R0]          @ Load current seed into R3
-    LDR     R4, =1664525      @ Load multiplier (a)
-    MUL     R3, R3, R4        @ R3 = seed * a
-    LDR     R4, =1013904223   @ Load increment (c)
-    ADD     R3, R3, R4        @ R3 = new_seed (a*seed + c)
-    STR     R3, [R0]          @ Store updated seed back to memory
-
-    @ --- Step 2: Compute range_size = max - min + 1 ---
-    SUB     R4, R2, R1        @ R4 = max - min
-    ADD     R4, R4, #1        @ R4 = range_size (max - min + 1)
-
-    @ --- Step 3: Scale new_seed to [min, max] ---
-    UDIV    R5, R3, R4        @ R5 = new_seed / range_size (quotient)
-    MLS     R0, R4, R5, R3    @ R0 = new_seed - (range_size * quotient) = remainder
-    ADD     R0, R0, R1        @ R0 = remainder + min (final result)
-
-    POP     {R3-R5, PC}       @ Restore registers and return
 
 
 @
