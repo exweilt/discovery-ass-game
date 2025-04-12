@@ -52,7 +52,7 @@ Main:
 
 
   .equ DIMMING_LOWER_BOUNDARY, 1000
-  .equ DIMMING_HIGHER_BOUNDARY, 1010
+  .equ DIMMING_HIGHER_BOUNDARY, 1150
   @ Really simple and not precise DIMMING forever loop
   @ if you want to disable dimming then comment out the following code and replace it with
   @ Idle_Loop:
@@ -70,9 +70,13 @@ Dimming_Loop:                       @ while (true)  {
   LDR     R5, [R4]
   LDR     R7, =current_LED          @     // Avoid conflict with setting up current LED
   LDR     R8, [R7]                  @     if (correct_LED == current_LED)
-  CMP     R5, R8                    @         continue
-  BEQ     Dimming_Loop
-
+  CMP     R5, R8                    @     {
+  BNE     Dimming_Not_The_Same      @
+  MOV     R0, R4                    @
+  BL      turn_on_led               @         turn_on_led(correct_LED);
+  B       Dimming_Loop              @         continue;
+  @                                 @     }
+.Dimming_Not_The_Same:
   ADD R6, R6, #1                    @     time_counter += 1;
 
   LDR R4, =DIMMING_LOWER_BOUNDARY
