@@ -51,18 +51,58 @@ Main:
   BL set_tick_period                  @ set_tick_period(1)
 
 
-  @ Idle loop forever 
-Idle_Loop:
-  B     Idle_Loop
+  .equ DIMMING_LOWER_BOUNDARY, 1000
+  .equ DIMMING_HIGHER_BOUNDARY, 1010
+  @ Really simple and not precise DIMMING forever loop
+  @ if you want to disable dimming then comment out the following code and replace it with
+  @ Idle_Loop:
+  @   B     Idle_Loop
+  @ also you need to uncomment a line inside Sys_Tick_Handler if you want to disable dimming.
+
+MOV R6, #0                          @ time_counter = 0;
+Dimming_Loop:                       @ while (true)  {
+  LDR   R4, =program_stage          @     program_stage: enum = load_byte(program_stage_ptr);
+  LDR   R5, [R4]    
+  CMP   R5, #GAME_ONGOING           @     if (program_stage == WAITING_FOR_SEED)
+  BNE Dimming_Loop                  @         continue;
+
+  LDR     R8, =correct_LED
+  LDR     R9, [R8]
+  LDR     R6, =current_LED          @     // Avoid conflict with setting up current LED
+  LDR     R7, [R6]                  @     if (correct_LED == current_LED)
+  CMP     R7, R9                    @         continue
+  BEQ     Dimming_Loop
+
+  ADD R6, R6, #1                    @     time_counter += 1;
+
+  LDR R4, =DIMMING_LOWER_BOUNDARY
+  CMP R6, R4                        @     if (time_counter == DIMMING_LOWER_BOUNDARY)
+  BEQ .Enable_Dimmed_Led            @         goto .Enable_Dimmed_Led;                    
+
+  LDR R4, =DIMMING_HIGHER_BOUNDARY  @     else if (time_counter < DIMMING_LOWER_BOUNDARY)
+  CMP R6, R4                        @         continue;
+  BLO Dimming_Loop
+
+.Disable_Dimmed_Led:
+  LDR   R4, =correct_LED
+  LDR   R5, [R4]
+  MOV R0, R5
+  BL turn_off_led                   @     turn_off_led(correct_LED);
+  MOV R6, #0                        @     time_counter = 0; // reset
+  B Dimming_Loop                    @     continue;
+
+.Enable_Dimmed_Led:                 @   .Enable_Dimmed_Led:
+  LDR   R4, =correct_LED
+  LDR   R5, [R4]
+  MOV R0, R5
+  BL turn_on_led                    @     turn_on_led(correct_LED);
+
+  B Dimming_Loop                    @ }
   
 
-
-
-
-
+  // Unreachable
 End_Main:
   POP   {R4-R6,PC}
-
 
 
 @
@@ -115,11 +155,11 @@ SysTick_Handler:
   LDR     R6, =current_LED
   LDR     R7, [R6]
 
-  CMP     R7, R9                    @ Avoid blink conflic
-  BEQ     continue
+  @ CMP     R7, R9                    @ Avoid blink conflic
+  @ BEQ     continue
 
   MOV     R0, R7
-  BL      turn_on_led
+  BL      turn_on_led                @ turn_on_led(current_LED)
 
 .tick.finish_handling_button:
 

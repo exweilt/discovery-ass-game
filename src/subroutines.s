@@ -456,7 +456,43 @@ turn_on_led:
 
   POP {R4-R6, PC}
 
+@
+@ turn_off_led()
+@
+@ Arguments
+@
+@ R0  led pin to disable (8-15 inclusive)
+@
+turn_off_led:
+  PUSH {R4-R6, LR}
 
+  LDR     R4, =GPIOE_ODR
+  LDR     R5, [R4]
+  LDR     R6, =1
+  LSL     R6, R6, R0
+  BIC     R5, R6
+  STR     R5, [R4]
+
+  POP {R4-R6, PC}
+
+@
+@ switch_led()
+@
+@ Arguments
+@
+@ R0  led pin to enable (8-15 inclusive)
+@
+switch_led:
+  PUSH {R4-R6, LR}
+
+  LDR     R4, =GPIOE_ODR
+  LDR     R5, [R4]
+  LDR     R6, =1
+  LSL     R6, R6, R0
+  EOR     R5, R6
+  STR     R5, [R4]
+
+  POP {R4-R6, PC}
 
 
 
