@@ -390,7 +390,7 @@ set_next_target:
   MOV   R0, R4
   MOV   R1, #8
   MOV   R2, #15
-  BL    andom_int     @     rand: int = random_number_generator(seed, 8, 15)
+  BL    random_int     @     rand: int = random_number_generator(seed, 8, 15)
 
   LDR   R6, =correct_LED
   STR   R0, [R6]                    @     *correct_LED  = rand
@@ -506,3 +506,45 @@ reset_game:
   BL set_next_target
 
   POP {R4-R5, PC}
+
+
+@ On Falure blinks all LEDs for the amount of wins
+on_fail:
+  PUSH    {R0-R5, LR}
+  LDR	    R0, =level
+  LDR     R1, [R0]
+  MOV     R0, R1
+  MOV     R1, #-1
+  MOV     R2, #8
+.failure_blink:
+  BL      turn_off_all_led
+
+  @ wait for 0.2s
+  PUSH    {R0}
+  LDR     R0, =200
+  BL      delay_ms
+  POP     {R0}
+
+  CMP     R0, R1
+  BEQ     end_failure
+  PUSH    {R0}
+.loop_through_leds:
+  MOV     R0, R2
+  BL      turn_on_led
+  ADD     R2, R2, #1
+  CMP     R2, #15
+  BGT     .end_loop_through_leds
+  B       .loop_through_leds
+.end_loop_through_leds:
+  @ wait for 0.5s
+  PUSH    {R0}
+  LDR     R0, =500
+  BL      delay_ms
+  POP     {R0}
+
+  ADD     R1, R1, #1
+  MOV     R2, #8                  @ Resets LED counter
+  POP     {R0}
+  B       .failure_blink
+end_failure:
+  POP     {R0-R5, PC}

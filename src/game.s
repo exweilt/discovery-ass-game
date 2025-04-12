@@ -56,38 +56,7 @@ Idle_Loop:
   B     Idle_Loop
   
 
-@ @  On Falure blinks all LEDs for the amount of wins
-@ On_Fail:
-@   PUSH  {R0-R5}
-@   LDR	  R0, =Level
-@   MOV   R1, #0
-@   MOV   R2, #8
-@   MOV   R3, #1
-@   @ Invert LD3
-@   @ by inverting bit 13 of GPIOE_ODR (GPIO Port E Output Data Register)
-@   @ (by using EOR to invert bit 13, leaving other bits unchanged)
-@ .failure_blink
-@   CMP     R0, R1
-@   BEQ     end_failure
-@   ADD     R1, R1, #1
 
-@   LDR     R4, =GPIOE_ODR
-@   LDR     R5, [R4]                  @ Read ...
-@   EOR     R5, R5, R3, LSL R2        @ Modify ...
-@   STR     R5, [R4]                  @ Write
-@   ADD     R2, R2, #1
-@   CMP     R2, #15
-@   BGT     reset_fail_leds
-@   @ wait for 1s ...
-@   LDR     R0, =BLINK_PERIOD
-@   BL      delay_ms
-
-@   @ ... and repeat
-@   B       .failure_blink
-@ reset_fail_leds:
-@   MOV     R2, #8
-@   B       .failure_blink
-@ end_failure:
 
 
 
@@ -151,11 +120,6 @@ SysTick_Handler:
   MOV     R0, R7
   BL      turn_on_led
 
-
-
-  @                                 @ }
-
-
 .tick.finish_handling_button:
 
 
@@ -206,6 +170,7 @@ EXTI0_IRQHandler:
 
 .miss:
   @                                 @ }
+  BL on_fail
   BL reset_game
 
 .finish_handling_button:
