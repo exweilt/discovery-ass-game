@@ -71,7 +71,7 @@ Dimming_Loop:                       @ while (true)  {
   LDR     R7, =current_LED          @     // Avoid conflict with setting up current LED
   LDR     R8, [R7]                  @     if (correct_LED == current_LED)
   CMP     R5, R8                    @     {
-  BNE     Dimming_Not_The_Same      @
+  BNE     .Dimming_Not_The_Same      @
   MOV     R0, R4                    @
   BL      turn_on_led               @         turn_on_led(correct_LED);
   B       Dimming_Loop              @         continue;
