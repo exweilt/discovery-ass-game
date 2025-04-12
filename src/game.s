@@ -25,7 +25,7 @@
   .section .text
 
 Main:
-  PUSH  {R4-R6,LR}
+  PUSH  {R4-R8,LR}
 
   LDR     R4, =SCB_ICSR               @ Clear any pre-existing interrupts for SysTick Timer
   LDR     R5, =SCB_ICSR_PENDSTCLR
@@ -66,11 +66,11 @@ Dimming_Loop:                       @ while (true)  {
   CMP   R5, #GAME_ONGOING           @     if (program_stage == WAITING_FOR_SEED)
   BNE Dimming_Loop                  @         continue;
 
-  LDR     R8, =correct_LED
-  LDR     R9, [R8]
-  LDR     R6, =current_LED          @     // Avoid conflict with setting up current LED
-  LDR     R7, [R6]                  @     if (correct_LED == current_LED)
-  CMP     R7, R9                    @         continue
+  LDR     R4, =correct_LED
+  LDR     R5, [R4]
+  LDR     R7, =current_LED          @     // Avoid conflict with setting up current LED
+  LDR     R8, [R7]                  @     if (correct_LED == current_LED)
+  CMP     R5, R8                    @         continue
   BEQ     Dimming_Loop
 
   ADD R6, R6, #1                    @     time_counter += 1;
@@ -102,7 +102,7 @@ Dimming_Loop:                       @ while (true)  {
 
   // Unreachable
 End_Main:
-  POP   {R4-R6,PC}
+  POP   {R4-R8,PC}
 
 
 @
