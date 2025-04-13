@@ -279,26 +279,26 @@ EXTI0_IRQHandler:
 @     R0: Random unsigned integer 
 
 random_int:
-    PUSH    {R3-R5, LR}       
+    PUSH    {R4-R6, LR}       
 
     @ Formula used is: new_seed = (a * seed + c) mod 2^32
     @ Constants (a=1664525, c=1013904223)
-    LDR     R3, [R0]          @ Load current seed into R3
-    LDR     R4, =1664525      @ Load multiplier (a)
-    MUL     R3, R3, R4        @ R3 = seed * a
+    LDR     R4, [R0]          @ Load current seed into R3
+    LDR     R5, =1664525      @ Load multiplier (a)
+    MUL     R4, R4, R5        @ R3 = seed * a
     LDR     R4, =1013904223   @ Load increment (c)
-    ADD     R3, R3, R4        @ R3 = new_seed (a*seed + c)
-    STR     R3, [R0]          @ Store updated seed back to memory
+    ADD     R4, R4, R5        @ R3 = new_seed (a*seed + c)
+    STR     R4, [R0]          @ Store updated seed back to memory
 
-    SUB     R4, R2, R1        @ R4 = max - min
-    ADD     R4, R4, #1        @ R4 = range_size (max - min + 1)
+    SUB     R5, R2, R1        @ R4 = max - min
+    ADD     R5, R5, #1        @ R4 = range_size (max - min + 1)
 
-    UDIV    R5, R3, R4        @ R5 = new_seed / range_size (quotient)
-    MUL     R4, R4, R5        @ R4 = (range_size * quotient) 
-    SUB     R0, R3, R4        @ R0 = new_seed - (range_size * quotient) = remainder
+    UDIV    R6, R4, R5        @ R5 = new_seed / range_size (quotient)
+    MUL     R5, R5, R6        @ R4 = (range_size * quotient) 
+    SUB     R0, R4, R5        @ R0 = new_seed - (range_size * quotient) = remainder
     ADD     R0, R0, R1        @ R0 = remainder + min (final result)
 
-    POP     {R3-R5, PC}       @ Restore registers and return
+    POP     {R4-R6, PC}       @ Restore registers and return
 
 @ @   Input handling
 @ @   Returns:
@@ -792,43 +792,37 @@ reset_game:
 
 @ On Falure blinks all LEDs for the amount of levels completed 
 on_fail:
-  PUSH    {R0-R5, LR}
-  LDR	    R0, =level          @ int currentLevel = [level]
-  LDR     R1, [R0]            @ int levelCounter = [currentLevel]
-  MOV     R0, R1              @ currentLevel  =  levelCounter
-  MOV     R1, #-1             @ levelCounter = -1 (counts the level 0)
-  MOV     R2, #8              @ currentLed = 8
+  PUSH    {R4-R6, LR}
+  LDR	    R4, =level             @ int currentLevel = [level]
+  LDR     R5, [R4]               @ int levelCounter = [currentLevel]
+  MOV     R4, R5                 @ currentLevel  =  levelCounter
+  MOV     R5, #-1                @ levelCounter = -1 (counts the level 0)
+  MOV     R6, #8                 @ currentLed = 8
 .failure_blink:               
-  BL      turn_off_all_led    @ turn_off_all_led()
-  @ wait for 0.2s
-  PUSH    {R0}
+  BL      turn_off_all_led       @ turn_off_all_led()
+  @ wait for 0.2s                @ Wait for 0.2 seconds before turning them on
   LDR     R0, =200
   BL      delay_ms
-  POP     {R0}
 
-  CMP     R0, R1
+  CMP     R4, R5                 @ Checks if all levels have been looped through
   BEQ     end_failure
-  PUSH    {R0}
-.loop_through_leds:
-  MOV     R0, R2
+.loop_through_leds:              @ Turns on all the LEDs one by one
+  MOV     R0, R6
   BL      turn_on_led
-  ADD     R2, R2, #1
-  CMP     R2, #15
+  ADD     R6, R6, #1
+  CMP     R6, #15
   BGT     .end_loop_through_leds
   B       .loop_through_leds
-.end_loop_through_leds:
+.end_loop_through_leds:          @ Wait for 0.5s until it turns them off
   @ wait for 0.5s
-  PUSH    {R0}
   LDR     R0, =500
   BL      delay_ms
-  POP     {R0}
 
-  ADD     R1, R1, #1
-  MOV     R2, #8                  @ Resets LED counter
-  POP     {R0}
-  B       .failure_blink
+  ADD     R5, R5, #1              @ increments currentBevel
+  MOV     R6, #8                  @ Resets LED counter
+  B       .failure_blink          @ loops to start
 end_failure:
-  POP     {R0-R5, PC}
+  POP     {R4-R6, PC}
 
 
 @ ===============================  Global data ===============================
