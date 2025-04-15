@@ -24,28 +24,28 @@
 Main:
   PUSH  {R4-R8,LR}
 
-  LDR     R4, =SCB_ICSR               @ Clear any pre-existing interrupts for SysTick Timer
+  LDR     R4, =SCB_ICSR                   @ Clear any pre-existing interrupts for SysTick Timer
   LDR     R5, =SCB_ICSR_PENDSTCLR
   STR     R5, [R4]
 
-  LDR R4, =current_LED
-  LDR R5, =8
-  STR R5, [R4]
+  LDR     R4, =current_LED                @ Initialize global variables
+  LDR     R5, =8
+  STR     R5, [R4]                        @ current_LED = 8
 
 
-  BL set_gpio_port_e_clock
+  BL      set_gpio_port_e_clock           @ Set up LED's clock 
 
-  BL set_pins_for_output  @ LEDs are set up to illuminate light
+  BL      set_pins_for_output             @ LEDs are set up to illuminate light
 
-  BL set_up_button
+  BL      set_up_button                   @ Set up button handling and the interrupt
 
   LDR     R4, =GPIOE_ODR
-  LDR     R6, =0b1010101000000000
-  STR     R6, [R4]                      @ Write
+  LDR     R6, =0b1010101000000000         @ Turn on some LED's so there is "star" pattern
+  STR     R6, [R4]                        @   on the invitation screen.
 
-  @ @ Configure SysTick Timer to generate an interrupt every 1 ms to count time for seed.
-  MOV R0, #1
-  BL set_tick_period                  @ set_tick_period(1)
+  @ Configure SysTick Timer to generate an interrupt every 1 ms to count time for seed.
+  MOV     R0, #1
+  BL      set_tick_period                  @ set_tick_period(1)
 
 
   .equ DIMMING_LOWER_BOUNDARY, 1000
@@ -56,32 +56,32 @@ Main:
   @   B     Idle_Loop
   @ also you need to uncomment a line inside Sys_Tick_Handler if you want to disable dimming.
 
-MOV R6, #0                          @ time_counter = 0;
-Dimming_Loop:                       @ while (true)  {
-  LDR   R4, =program_stage          @     program_stage: enum = load_byte(program_stage_ptr);
-  LDR   R5, [R4]    
-  CMP   R5, #GAME_ONGOING           @     if (program_stage == WAITING_FOR_SEED)
-  BNE Dimming_Loop                  @         continue;
+MOV R6, #0                           @ time_counter = 0;
+Dimming_Loop:                        @ while (true)  {
+  LDR     R4, =program_stage         @     program_stage: enum = load_byte(program_stage_ptr);
+  LDR     R5, [R4]    
+  CMP     R5, #GAME_ONGOING          @     if (program_stage == WAITING_FOR_SEED)
+  BNE     Dimming_Loop               @         continue;
 
   LDR     R4, =correct_LED
   LDR     R5, [R4]
-  LDR     R7, =current_LED          @     // Avoid conflict with setting up current LED
-  LDR     R8, [R7]                  @     if (correct_LED == current_LED)
-  CMP     R5, R8                    @     {
+  LDR     R7, =current_LED           @     // Avoid conflict with setting up current LED
+  LDR     R8, [R7]                   @     if (correct_LED == current_LED)
+  CMP     R5, R8                     @     {
   BNE     .Dimming_Not_The_Same      @
-  MOV     R0, R4                    @
-  BL      turn_on_led               @         turn_on_led(correct_LED);
-  B       Dimming_Loop              @         continue;
-  @                                 @     }
+  MOV     R0, R4                     @
+  BL      turn_on_led                @         turn_on_led(correct_LED);
+  B       Dimming_Loop               @         continue;
+  @                                  @     }
 .Dimming_Not_The_Same:
-  ADD R6, R6, #1                    @     time_counter += 1;
+  ADD R6, R6, #1                     @     time_counter += 1;
 
   LDR R4, =DIMMING_LOWER_BOUNDARY
-  CMP R6, R4                        @     if (time_counter == DIMMING_LOWER_BOUNDARY)
-  BEQ .Enable_Dimmed_Led            @         goto .Enable_Dimmed_Led;                    
+  CMP R6, R4                         @     if (time_counter == DIMMING_LOWER_BOUNDARY)
+  BEQ .Enable_Dimmed_Led             @         goto .Enable_Dimmed_Led;                    
 
-  LDR R4, =DIMMING_HIGHER_BOUNDARY  @     else if (time_counter < DIMMING_LOWER_BOUNDARY)
-  CMP R6, R4                        @         continue;
+  LDR R4, =DIMMING_HIGHER_BOUNDARY   @     else if (time_counter < DIMMING_LOWER_BOUNDARY)
+  CMP R6, R4                         @         continue;
   BLO Dimming_Loop
 
 .Disable_Dimmed_Led:
@@ -99,15 +99,18 @@ Dimming_Loop:                       @ while (true)  {
   BL turn_on_led                    @     turn_on_led(correct_LED);
 
   B Dimming_Loop                    @ }
-  
 
-  // Unreachable
+  @ End commenting out here if you were to disable dimming.
+
+  @ Unreachable
 End_Main:
   POP   {R4-R8,PC}
 
 
 @
-@ SysTick interrupt handler
+@ SysTick interrupt handler.
+@ Is executed each current_period milliseconds.
+@ The current_period can be set to a new value with set_current_period() subroutine.
 @
   .type  SysTick_Handler, %function
 SysTick_Handler:
@@ -133,48 +136,49 @@ SysTick_Handler:
   BLO   .skip_updating_screen
   MOV   R5, #0
   STR   R5, [R4]
-  LDR     R4, =GPIOE_ODR
-  LDR     R5, [R4]                      @ Read ...
-  LDR     R8, =0b1111111100000000
-  EOR     R5, R8                        @ Modify ...
-  STR     R5, [R4]                      @ Write
+  LDR   R4, =GPIOE_ODR
+  LDR   R5, [R4]                      @ Read ...
+  LDR   R8, =0b1111111100000000
+  EOR   R5, R8                        @ Modify ...
+  STR   R5, [R4]                      @ Write
 .skip_updating_screen:
 
-  B .tick.finish_handling_button          @ }
+  B     .tick.finish_handling_button @ }
 
 .tick.not_waiting_for_seed:
   @                                 @ else if (program_stage == GAME_ONGOING)
   @                                 @ {
-  BL      turn_off_all_led
-  LDR     R4, =GPIOE_ODR
-  LDR     R5, [R4]                      @ Read ...
+  BL    turn_off_all_led
+  LDR   R4, =GPIOE_ODR
+  LDR   R5, [R4]                      @ Read ...
 
   BL move_to_next_led
 
-  LDR     R8, =correct_LED
-  LDR     R9, [R8]
-  LDR     R6, =current_LED
-  LDR     R7, [R6]
+  LDR   R8, =correct_LED
+  LDR   R9, [R8]
+  LDR   R6, =current_LED
+  LDR   R7, [R6]
 
   @ CMP     R7, R9                    @ Avoid blink conflic
   @ BEQ     continue
 
-  MOV     R0, R7
-  BL      turn_on_led                @ turn_on_led(current_LED)
+  MOV   R0, R7
+  BL    turn_on_led                @ turn_on_led(current_LED)
 
 .tick.finish_handling_button:
 
 
-  LDR     R4, =SCB_ICSR             @ Clear (acknowledge) the interrupt
-  LDR     R5, =SCB_ICSR_PENDSTCLR   @
-  STR     R5, [R4]                  @
+  LDR   R4, =SCB_ICSR             @ Clear (acknowledge) the interrupt
+  LDR   R5, =SCB_ICSR_PENDSTCLR   @
+  STR   R5, [R4]                  @
 
   @ Return from interrupt handler
   POP  {R4-R8, PC}
 
 
 @
-@ External interrupt line 0 (EXTI0) interrupt handler
+@ External interrupt line 0 (EXTI0) button interrupt handler.
+@ Executes when the button is pressed.
 @
   .type  EXTI0_IRQHandler, %function
 EXTI0_IRQHandler:
@@ -227,43 +231,6 @@ EXTI0_IRQHandler:
   POP  {R4-R10,PC}
 
 
-@ @
-@ @ External interrupt line 0 interrupt handler
-@ @   (count button presses)
-@ @
-@   .type  EXTI0_IRQHandler, %function
-@ EXTI0_IRQHandler:
-
-@   PUSH  {R4,R5,LR}
-
-@   LDR   R4, =button_count           @ count = count + 1
-@   LDR   R5, [R4]                    @
-@   ADD   R5, R5, #1                  @
-@   STR   R5, [R4]                    @
-
-@   LDR   R4, =EXTI_PR                @ Clear (acknowledge) the interrupt
-@   MOV   R5, #(1<<0)                 @
-@   STR   R5, [R4]                    @
-
-@   @ Return from interrupt handler
-@   POP  {R4,R5,PC}
-
-
-@ @     Takes R0 as number of wins
-@ blink_for_each_win:
-@   MOV   R1, #0
-@ for_win_loop:
-@   CMP   R1, R0
-@   BGE   end_game
-
-@ @ Blinking Code
-  
-
-
-@   ADD   R1, R1, #1
-@   B for_win_loop
-
-
 @ ============================================================================
 @ =============================== Subroutines ================================
 @ ============================================================================
@@ -276,7 +243,6 @@ EXTI0_IRQHandler:
 @     R2: Maximum value (inclusive)
 @   Returns:
 @     R0: Random unsigned integer 
-
 random_int:
     PUSH    {R4-R6, LR}       
 
@@ -298,150 +264,6 @@ random_int:
     ADD     R0, R0, R1        @ R0 = remainder + min (final result)
 
     POP     {R4-R6, PC}       @ Restore registers and return
-
-@ @   Input handling
-@ @   Returns:
-@ @       R0 - 0 ifButtonNotPressed
-@ @       R0 - 1 ifButtonISPressed
-@ .type EXTI0_IRQHandler, %function
-@ EXTI0_IRQHandler:
-@   PUSH  {R4,R5,LR}
-@   @ Set button state to pressed
-@   MOV   R0, #1
-    
-@   @ Clear the interrupt pending bit
-@   LDR   R4, =EXTI_PR
-@   MOV   R5, #1
-@   STR   R5, [R4]
-@   POP   {R4,R5,PC}
-
-@ @   Blinking - open/close LED
-@ @   
-@ @   Need input R1 (LED Number)
-@ @
-@ @   R4 Read GPIOE_ODR
-@ @   R5 Store GPIOE_ODR and make change
-@ @
-@ @   R6 R7 Calculations to change GPIOE_ODR
-
-@ bliking:
-@   PUSH  {R4-R12,LR}                     @ LED code in R1
-
-@   LDR     R4, =GPIOE_ODR
-@   LDR     R5, [R4]                      @ Read
-
-@   MOV     R6, #0b1                      @ Access LED
-@   LSL     R7, R6, R1
-
-@   EOR     R5, R7                        @ Modify
-@   STR     R5, [R4]                      @ Write
-
-@   BL      STICK_TIMER
-@   @ Need Access to Stick Timer (To check pause time)
-@
-@   POP  {R4-R12,PC}
-
-
-@ @
-@ @   Clockwise Blinking - Blink in Clockwise
-@ @
-@ @   No input need
-@ @
-@ @   Use Blinking subroutine
-@ @
-@ @   R4 Current working LED
-@ @   R1 Update to current LED (To check Level (Level subroutine))
-@ @
-@ clockwise_bliking:
-@   PUSH  {R4-R12,LR}
-
-@ .reset:
-
-@   MOV	  R4, #7
-
-@ .loop:
-
-@   ADD	  R4, R4, #1
-@   CMP	  R4, #16
-@   BEQ	  .reset
-
-
-@   MOV   R1, R4
-@   LDR 	R3, =current_LED		@ Update current_LED
-@   LDR   R1, [R3]
-@   BL 	  blinking			        @ Open
-@   BL 	  blinking   			    @ Close
-
-
-@   B  	  loop
-
-@   POP  {R4-R12,PC}
-
-@ ==========================================================
-
-@ @   Level - Level Up Count
-@ @
-@ @   No input need
-@ @
-@ @   R0 Load Level and add 1 Level
-@ @   R0 Load Time break and reduce by 200ms
-@ @
-
-@ level_up:
-@   PUSH  {LR}
-
-@   LDR	  R1, =Level
-@   LDR   R0, [R1]
-@   ADD	  R0, R0, #1			@ Level Up
-@   STR	  R0, [R1]
-
-@   LDR	  R1, =Time
-@   LDR   R0, [R1]
-@   SUB	  R0, R0, #200			@ Reduce by 200 milisec
-@   STR	  R0, [R1]
-
-@   BL	  clockwise_bliking
-
-@   POP  {PC}
-
-
-@ ==========================================================
-
-
-@ @   EXTIO_IRQHandler - Check if you lose or win the round
-@ @
-@ @   No input need
-@ @
-@ @   The Exception Handler will automaticly called if bottom pressed
-@ @   R4 current LED load (save from Clockwise Blinking)
-@ @   R5 correct LED load (save from Random number)
-@ @   R0 R4 R5 For reset the Exception Handler
-@ @
-
-@ EXTI0_IRQHandler:
-
-@   PUSH  {R4,R5,LR}			            @ Return R0 1 TRUE, 0 FALSE
-
-@   LDR   R4, =current_LED        	@ Check current LED and correct LED
-@   LDR   R1, [R4]
-@   LDR   R5, =correct_LED
-@   LDR   R2, [R5]
-@   CMP	  R1, R2
-@   BEQ	  end
-
-@   MOV 	  R0, #0
-
-
-
-@   MOV 	  R0, #1
-
-@   LDR   R4, =EXTI_PR      		@ Clear (acknowledge) the interrupt
-@   MOV   R5, #(1<<0)       		
-@   STR   R5, [R4]          		
-
-@   POP  {R4,R5,PC}
-
-@ end_game:
 
 
 @
