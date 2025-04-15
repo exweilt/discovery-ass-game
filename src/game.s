@@ -9,20 +9,16 @@
   .global Main
   .global SysTick_Handler
   .global EXTI0_IRQHandler
-  .global current_LED
-  .global correct_LED
-  .global current_period
-
-  .extern set_gpio_port_e_clock
-  .extern set_pins_for_output
-  .extern set_up_button
 
   @ Definitions are in definitions.s to keep this file "clean"
   .include "definitions.s"
-  .include "subroutines.s"
-
+ @ .include "subroutines.s"  @ we stored all subroutines in a separate file during development
 
   .section .text
+
+@ ============================================================================
+@ =============================== The Program ================================
+@ ============================================================================
 
 Main:
   PUSH  {R4-R8,LR}
@@ -230,45 +226,9 @@ EXTI0_IRQHandler:
   POP  {R4-R10,PC}
 
 
-@ @
-@ @ External interrupt line 0 interrupt handler
-@ @   (count button presses)
-@ @
-@   .type  EXTI0_IRQHandler, %function
-@ EXTI0_IRQHandler:
-
-@   PUSH  {R4,R5,LR}
-
-@   LDR   R4, =button_count           @ count = count + 1
-@   LDR   R5, [R4]                    @
-@   ADD   R5, R5, #1                  @
-@   STR   R5, [R4]                    @
-
-@   LDR   R4, =EXTI_PR                @ Clear (acknowledge) the interrupt
-@   MOV   R5, #(1<<0)                 @
-@   STR   R5, [R4]                    @
-
-@   @ Return from interrupt handler
-@   POP  {R4,R5,PC}
-
-
-@ @     Takes R0 as number of wins
-@ blink_for_each_win:
-@   MOV   R1, #0
-@ for_win_loop:
-@   CMP   R1, R0
-@   BGE   end_game
-
-@ @ Blinking Code
-  
-
-
-@   ADD   R1, R1, #1
-@   B for_win_loop
-
-
-@ ==============================   Subroutines ==============================
-
+@ ============================================================================
+@ =============================== Subroutines ================================
+@ ============================================================================
 
 @   Random Number Subroutine - generate random integer.
 @   Args:
@@ -299,150 +259,6 @@ random_int:
     ADD     R0, R0, R1        @ R0 = remainder + min (final result)
 
     POP     {R3-R5, PC}       @ Restore registers and return
-
-@ @   Input handling
-@ @   Returns:
-@ @       R0 - 0 ifButtonNotPressed
-@ @       R0 - 1 ifButtonISPressed
-@ .type EXTI0_IRQHandler, %function
-@ EXTI0_IRQHandler:
-@   PUSH  {R4,R5,LR}
-@   @ Set button state to pressed
-@   MOV   R0, #1
-    
-@   @ Clear the interrupt pending bit
-@   LDR   R4, =EXTI_PR
-@   MOV   R5, #1
-@   STR   R5, [R4]
-@   POP   {R4,R5,PC}
-
-@ @   Blinking - open/close LED
-@ @   
-@ @   Need input R1 (LED Number)
-@ @
-@ @   R4 Read GPIOE_ODR
-@ @   R5 Store GPIOE_ODR and make change
-@ @
-@ @   R6 R7 Calculations to change GPIOE_ODR
-
-@ bliking:
-@   PUSH  {R4-R12,LR}                     @ LED code in R1
-
-@   LDR     R4, =GPIOE_ODR
-@   LDR     R5, [R4]                      @ Read
-
-@   MOV     R6, #0b1                      @ Access LED
-@   LSL     R7, R6, R1
-
-@   EOR     R5, R7                        @ Modify
-@   STR     R5, [R4]                      @ Write
-
-@   BL      STICK_TIMER
-@   @ Need Access to Stick Timer (To check pause time)
-@
-@   POP  {R4-R12,PC}
-
-
-@ @
-@ @   Clockwise Blinking - Blink in Clockwise
-@ @
-@ @   No input need
-@ @
-@ @   Use Blinking subroutine
-@ @
-@ @   R4 Current working LED
-@ @   R1 Update to current LED (To check Level (Level subroutine))
-@ @
-@ clockwise_bliking:
-@   PUSH  {R4-R12,LR}
-
-@ .reset:
-
-@   MOV	  R4, #7
-
-@ .loop:
-
-@   ADD	  R4, R4, #1
-@   CMP	  R4, #16
-@   BEQ	  .reset
-
-
-@   MOV   R1, R4
-@   LDR 	R3, =current_LED		@ Update current_LED
-@   LDR   R1, [R3]
-@   BL 	  blinking			        @ Open
-@   BL 	  blinking   			    @ Close
-
-
-@   B  	  loop
-
-@   POP  {R4-R12,PC}
-
-@ ==========================================================
-
-@ @   Level - Level Up Count
-@ @
-@ @   No input need
-@ @
-@ @   R0 Load Level and add 1 Level
-@ @   R0 Load Time break and reduce by 200ms
-@ @
-
-@ level_up:
-@   PUSH  {LR}
-
-@   LDR	  R1, =Level
-@   LDR   R0, [R1]
-@   ADD	  R0, R0, #1			@ Level Up
-@   STR	  R0, [R1]
-
-@   LDR	  R1, =Time
-@   LDR   R0, [R1]
-@   SUB	  R0, R0, #200			@ Reduce by 200 milisec
-@   STR	  R0, [R1]
-
-@   BL	  clockwise_bliking
-
-@   POP  {PC}
-
-
-@ ==========================================================
-
-
-@ @   EXTIO_IRQHandler - Check if you lose or win the round
-@ @
-@ @   No input need
-@ @
-@ @   The Exception Handler will automaticly called if bottom pressed
-@ @   R4 current LED load (save from Clockwise Blinking)
-@ @   R5 correct LED load (save from Random number)
-@ @   R0 R4 R5 For reset the Exception Handler
-@ @
-
-@ EXTI0_IRQHandler:
-
-@   PUSH  {R4,R5,LR}			            @ Return R0 1 TRUE, 0 FALSE
-
-@   LDR   R4, =current_LED        	@ Check current LED and correct LED
-@   LDR   R1, [R4]
-@   LDR   R5, =correct_LED
-@   LDR   R2, [R5]
-@   CMP	  R1, R2
-@   BEQ	  end
-
-@   MOV 	  R0, #0
-
-
-
-@   MOV 	  R0, #1
-
-@   LDR   R4, =EXTI_PR      		@ Clear (acknowledge) the interrupt
-@   MOV   R5, #(1<<0)       		
-@   STR   R5, [R4]          		
-
-@   POP  {R4,R5,PC}
-
-@ end_game:
 
 
 @
@@ -801,16 +617,13 @@ on_fail:
 .failure_blink:               
   BL      turn_off_all_led    @ turn_off_all_led()
   @ wait for 0.2s
-  PUSH    {R4}
   LDR     R0, =200
   BL      delay_ms
-  POP     {R4}
 
   CMP     R4, R5
   BEQ     end_failure
-  PUSH    {R4}
 .loop_through_leds:
-  MOV     R4, R6
+  MOV     R0, R6
   BL      turn_on_led
   ADD     R6, R6, #1
   CMP     R6, #15
@@ -818,20 +631,19 @@ on_fail:
   B       .loop_through_leds
 .end_loop_through_leds:
   @ wait for 0.5s
-  PUSH    {R4}
   LDR     R0, =500
   BL      delay_ms
-  POP     {R4}
 
   ADD     R5, R5, #1
   MOV     R6, #8                  @ Resets LED counter
-  POP     {R4}
   B       .failure_blink
 end_failure:
   POP     {R4-R6, PC}
 
 
+@ ============================================================================
 @ ===============================  Global data ===============================
+@ ============================================================================
   .section .data
 
 .equ MAX_SEED_VALUE, 4294967295
