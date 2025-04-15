@@ -9,19 +9,16 @@
   .global Main
   .global SysTick_Handler
   .global EXTI0_IRQHandler
-  .global current_LED
-  .global correct_LED
-  .global current_period
-
-  .extern set_gpio_port_e_clock
-  .extern set_pins_for_output
-  .extern set_up_button
 
   @ Definitions are in definitions.s to keep this file "clean"
   .include "definitions.s"
-  .include "subroutines.s"
+
+  @ .include "subroutines.s"  @ we stored all subroutines in a separate file during development
 
 
+@ ============================================================================
+@ =============================== The Program ================================
+@ ============================================================================
   .section .text
 
 Main:
@@ -267,7 +264,9 @@ EXTI0_IRQHandler:
 @   B for_win_loop
 
 
-@ ==============================   Subroutines ==============================
+@ ============================================================================
+@ =============================== Subroutines ================================
+@ ============================================================================
 
 
 @   Random Number Subroutine - generate random integer.
@@ -825,7 +824,9 @@ end_failure:
   POP     {R4-R6, PC}
 
 
+@ ============================================================================
 @ ===============================  Global data ===============================
+@ ============================================================================
   .section .data
 
 .equ MAX_SEED_VALUE, 4294967295
