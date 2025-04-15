@@ -22,30 +22,30 @@
   .section .text
 
 Main:
-  PUSH  {R4-R8,LR}
+  PUSH    {R4-R8,LR}
 
-  LDR     R4, =SCB_ICSR                   @ Clear any pre-existing interrupts for SysTick Timer
+  LDR     R4, =SCB_ICSR                 @ Clear any pre-existing interrupts for SysTick Timer
   LDR     R5, =SCB_ICSR_PENDSTCLR
   STR     R5, [R4]
 
-  LDR     R4, =current_LED                @ Initialize global variables
-  LDR     R5, =8
-  STR     R5, [R4]                        @ current_LED = 8
+  LDR     R4, =current_LED              @ Initialize global variables
+  LDR     R5, =8                        @ current_LED = 8
+  STR     R5, [R4]                        
 
 
-  BL      set_gpio_port_e_clock           @ Set up LED's clock 
+  BL      set_gpio_port_e_clock         @ Set up LED's clock 
 
-  BL      set_pins_for_output             @ LEDs are set up to illuminate light
+  BL      set_pins_for_output           @ LEDs are set up to illuminate light
 
-  BL      set_up_button                   @ Set up button handling and the interrupt
+  BL      set_up_button                 @ Set up button handling and the interrupt
 
   LDR     R4, =GPIOE_ODR
-  LDR     R6, =0b1010101000000000         @ Turn on some LED's so there is "star" pattern
-  STR     R6, [R4]                        @   on the invitation screen.
+  LDR     R6, =0b1010101000000000       @ Turn on some LED's so there is "star" pattern
+  STR     R6, [R4]                      @   on the invitation screen.
 
   @ Configure SysTick Timer to generate an interrupt every 1 ms to count time for seed.
   MOV     R0, #1
-  BL      set_tick_period                  @ set_tick_period(1)
+  BL      set_tick_period               @ set_tick_period(1)
 
 
   .equ DIMMING_LOWER_BOUNDARY, 1000
@@ -87,18 +87,18 @@ Dimming_Loop:                        @ while (true)  {
 .Disable_Dimmed_Led:
   LDR   R4, =correct_LED
   LDR   R5, [R4]
-  MOV R0, R5
-  BL turn_off_led                   @     turn_off_led(correct_LED);
-  MOV R6, #0                        @     time_counter = 0; // reset
-  B Dimming_Loop                    @     continue;
+  MOV R0, R5                         @   .Disable_Dimmed_Led:
+  BL turn_off_led                    @     turn_off_led(correct_LED);
+  MOV R6, #0                         @     time_counter = 0; // reset
+  B Dimming_Loop                     @     continue;
 
-.Enable_Dimmed_Led:                 @   .Enable_Dimmed_Led:
+.Enable_Dimmed_Led:                  @   .Enable_Dimmed_Led:
   LDR   R4, =correct_LED
   LDR   R5, [R4]
   MOV R0, R5
-  BL turn_on_led                    @     turn_on_led(correct_LED);
+  BL turn_on_led                     @     turn_on_led(correct_LED);
 
-  B Dimming_Loop                    @ }
+  B Dimming_Loop                     @ }
 
   @ End commenting out here if you were to disable dimming.
 
@@ -126,51 +126,50 @@ SysTick_Handler:
   LDR   R4, =program_stage          @ program_stage: enum = load_byte(program_stage_ptr)
   LDR   R5, [R4]    
   CMP   R5, #WAITING_FOR_SEED       @ if (program_stage == WAITING_FOR_SEED)
-  BNE   .tick.not_waiting_for_seed       @ {
+  BNE   .tick.not_waiting_for_seed  @ {
 
-  LDR   R4, =invitation_timer
-  LDR   R5, [R4]
-  ADD   R5, R5, R7
-  STR   R5, [R4]
-  CMP   R5, #1000
-  BLO   .skip_updating_screen
-  MOV   R5, #0
-  STR   R5, [R4]
+  LDR   R4, =invitation_timer       @
+  LDR   R5, [R4]                    @
+  ADD   R5, R5, R7                  @
+  STR   R5, [R4]                    @     invitation_timer = invitation_timer + current_period
+  CMP   R5, #1000                   @     if (invitation_timer >= 1000)
+  BLO   .skip_updating_screen       @     {
+
+  MOV   R5, #0                      @         Invert all LED's
+  STR   R5, [R4]                    @           effectively makes the invitation animation
   LDR   R4, =GPIOE_ODR
-  LDR   R5, [R4]                      @ Read ...
+  LDR   R5, [R4]                      
   LDR   R8, =0b1111111100000000
-  EOR   R5, R8                        @ Modify ...
-  STR   R5, [R4]                      @ Write
-.skip_updating_screen:
+  EOR   R5, R8                        
+  STR   R5, [R4]            
+.skip_updating_screen:              @     }
 
-  B     .tick.finish_handling_button @ }
+  B   .tick.finish_handling_button  @ }
 
 .tick.not_waiting_for_seed:
   @                                 @ else if (program_stage == GAME_ONGOING)
   @                                 @ {
-  BL    turn_off_all_led
-  LDR   R4, =GPIOE_ODR
-  LDR   R5, [R4]                      @ Read ...
-
-  BL move_to_next_led
-
-  LDR   R8, =correct_LED
-  LDR   R9, [R8]
-  LDR   R6, =current_LED
+  BL    turn_off_all_led            @     turn_off_all_led()  // CLEAR the screen for new frame         
+  @                                 @
+  BL move_to_next_led               @     move_to_next_led()  // move the current LED in circle
+  @                                 @
+  LDR   R8, =correct_LED            @     load(correct_LED)   // unused  
+  LDR   R9, [R8]                    @
+  LDR   R6, =current_LED            @     load(current_LED)
   LDR   R7, [R6]
 
-  @ CMP     R7, R9                    @ Avoid blink conflic
-  @ BEQ     continue
-
   MOV   R0, R7
-  BL    turn_on_led                @ turn_on_led(current_LED)
+  BL    turn_on_led                 @     turn_on_led(current_LED)
 
-.tick.finish_handling_button:
+  @ MOV   R0, R9                    @       Uncomment this if you disabled dimming
+  @ BL    turn_on_led               @       // turn_on_led(correct_LED)
+
+.tick.finish_handling_button:       @ }
 
 
-  LDR   R4, =SCB_ICSR             @ Clear (acknowledge) the interrupt
-  LDR   R5, =SCB_ICSR_PENDSTCLR   @
-  STR   R5, [R4]                  @
+  LDR   R4, =SCB_ICSR               @ Clear (acknowledge) the interrupt
+  LDR   R5, =SCB_ICSR_PENDSTCLR     @
+  STR   R5, [R4]                    @
 
   @ Return from interrupt handler
   POP  {R4-R8, PC}
@@ -178,7 +177,7 @@ SysTick_Handler:
 
 @
 @ External interrupt line 0 (EXTI0) button interrupt handler.
-@ Executes when the button is pressed.
+@ Executes once when the button is pressed.
 @
   .type  EXTI0_IRQHandler, %function
 EXTI0_IRQHandler:
@@ -186,47 +185,45 @@ EXTI0_IRQHandler:
 
   LDR   R4, =program_stage          @ program_stage: enum = load_byte(program_stage_ptr)
   LDR   R5, [R4]    
-  CMP   R5, #WAITING_FOR_SEED       @ if (program_stage == WAITING_FOR_SEED)
+  CMP   R5, #WAITING_FOR_SEED       @ if (program_stage == WAITING_FOR_SEED) // invitation stage
   BNE   .not_waiting_for_seed       @ {
   LDR   R7, =total_ms               @     <$r8>total_ms = *total_ms_ptr
   LDR   R8, [R7]
-  LDR   R6, =seed                  @     
+  LDR   R6, =seed                   @     
   STR   R8, [R6]                    @     *seed_ptr = total_ms 
   BL    set_next_target             @     set_next_target()
   LDR   R8, =GAME_ONGOING           @
   STR   R8, [R4]                    @     *program_stage_ptr = GAME_ONGOING
   MOV   R0, #500
-  BL    set_tick_period             @     set_tick_period(1000)     
+  BL    set_tick_period             @     set_tick_period(500)     
 
-  B .finish_handling_button          @ }
+  B .finish_handling_button         @ }
 
 .not_waiting_for_seed:
   @                                 @ else if (program_stage == GAME_ONGOING)
   @                                 @ {
-  LDR R6, =current_LED
+  LDR R6, =current_LED              @     load(current_LED)
   LDR R7, [R6]
-  LDR R8, =correct_LED
+  LDR R8, =correct_LED              @     load(correct_LED)
   LDR R9, [R8]
-  CMP R7, R9
-  BNE .miss
-.hit:
-  BL set_next_target
-  BL increase_level
-  B .finish_handling_button
-
-.miss:
-  @                                 @ }
-  BL on_fail
-  BL reset_game
+  CMP R7, R9                        @     if (current_LED == correct_LED)
+  BNE .miss                         @     {
+.hit:                               @
+  BL set_next_target                @         set_next_target()
+  BL increase_level                 @         increase_level()
+  B .finish_handling_button         @
+  @                                 @     }
+.miss:                              @     else
+  @                                 @     {
+  BL on_fail                        @         on_fail()    // go draw death screen
+  BL reset_game                     @         reset_game() // reset speed, regenerate target
+  @                                 @     }
 
 .finish_handling_button:
-  @ Tell microcontroller that we have handled the EXTI0 interrupt
-  @ By writing a 1 to bit 0 of the EXTI Pending Register (PR)
-  @ (Writing 0s to bits has no effect)
-  @ STM32F303 Reference Manual 14.3.6 (pg. 299)
-  LDR   R4, =EXTI_PR      @ Clear (acknowledge) the interrupt
-  MOV   R5, #(1<<0)       @
-  STR   R5, [R4]          @
+
+  LDR   R4, =EXTI_PR                @ Clear (acknowledge) the interrupt
+  MOV   R5, #(1<<0)                 @
+  STR   R5, [R4]                    @
   @ Return from interrupt handler
   POP  {R4-R10,PC}
 
@@ -275,7 +272,7 @@ set_pins_for_output:
   PUSH {R4-R6, LR}
   LDR     R4, =GPIOE_MODER
   LDR     R5, [R4]                                   @ Read ...
-  LDR     R6, =0b11111111111111110000000000000000
+  LDR     R6, =0b11111111111111110000000000000000    @ extract the bitfield of interest
   BIC     R5, R6                                     @ clear 8 LEDs
   LDR     R6, =0b01010101010101010000000000000000
   ORR     R5, R6                                     @ 01 for each LED 
@@ -291,6 +288,7 @@ set_pins_for_output:
 set_gpio_port_e_clock:
   PUSH {R4, R5, LR}
   
+  @ Enable GPIO port E by enabling its clock
   LDR     R4, =RCC_AHBENR
   LDR     R5, [R4]
   ORR     R5, R5, #(0b1 << (RCC_AHBENR_GPIOEEN_BIT))
@@ -303,8 +301,6 @@ set_gpio_port_e_clock:
 @ delay_ms subroutine
 @ Use the Cortex SysTick timer to wait for a specified number of milliseconds
 @
-@ See Yiu, Joseph, "The Definitive Guide to the ARM Cortex-M3 and Cortex-M4
-@   Processors", 3rd edition, Chapter 9.
 @
 @ Parameters:
 @   R0: delay - time to wait in ms
@@ -368,12 +364,12 @@ delay_ms:
 set_tick_period:
   PUSH  {R4-R5,LR}
 
-  @ Dont understand what the following does so commented out
+  @ Don't understand what the following does so commented out
   @ LDR   R4, =SCB_ICSR               @ Clear any pre-existing interrupts
   @ LDR   R5, =SCB_ICSR_PENDSTCLR     @
   @ STR   R5, [R4]
 
-  LDR   R4, =current_period
+  LDR   R4, =current_period         @ current_period = period // set to the argument
   STR   R0, [R4]
 
   LDR   R4, =SYSTICK_CSR            @ Stop SysTick timer
@@ -397,7 +393,7 @@ set_tick_period:
   
   POP   {R4-R5,PC}
 
-@ set_up_button() - configure all the settings to use push button.
+@ void set_up_button() - configure all the settings to use push button.
 @
 @ Args:
 @   None
@@ -446,89 +442,104 @@ set_up_button:
 
 
 @
-@ set_next_target()
+@ void set_next_target()
+@
+@ Parameters:
+@   None
+@
+@ Returns:
+@   None
 @
 set_next_target:
   PUSH {R4-R6, LR}
 
-  LDR   R4, =seed     @ R4 = seed_ptr
-  LDR   R5, [R4]      @ R5 seed = *seed_ptr 
+  LDR   R4, =seed           @ R4 = seed_ptr
+  LDR   R5, [R4]            @ R5 seed = *seed_ptr 
 
   MOV   R0, R4
   MOV   R1, #8
   MOV   R2, #15
-  BL    random_int     @     rand: int = random_number_generator(seed, 8, 15)
+  BL    random_int          @ rand: int = random_int(seed, 8, 15)
 
   LDR   R6, =correct_LED
-  STR   R0, [R6]                    @     *correct_LED  = rand
-
-  @ MOV   R0, R4
-  @ MOV   R1, #0
-  @ LDR   R2, =MAX_SEED_VALUE
-  @ BL    tmp_random_int     @     new_seed: int = random_number_generator(8, 15)
-
-  @ STR   R0, [R4]                      @     *seed = new_seed
+  STR   R0, [R6]            @ *correct_LED  = rand
 
   POP {R4-R6, PC}
   
 
 @
-@ move_to_next_led()
+@ void move_to_next_led()
+@
+@ Parameters:
+@   None
+@
+@ Returns:
+@   None
 @
 move_to_next_led:
-  PUSH {R4-R6, LR}
+  PUSH    {R4-R6, LR}
 
-  LDR R4, =current_LED
-  LDR R5, [R4]
-  ADD R5, R5, #1
-  LDR R6, =15
-  CMP R5, R6
-  BLS .skip_circling
-  MOV R5, #8
-
+  LDR     R4, =current_LED
+  LDR     R5, [R4]              @ load(current_LED)
+  ADD     R5, R5, #1            @ current_LED += 1
+  LDR     R6, =15
+  CMP     R5, R6                @ if (current_LED > 15)
+  BLS     .skip_circling        @ {
+  MOV     R5, #8                @     current_LED = 8
+  @                             @ }
 .skip_circling:
-  STR R5, [R4]
+  STR     R5, [R4]              @ update_global(current_LED)
 
-  POP {R4-R6, PC}
+  POP     {R4-R6, PC}
 
 
 @
-@ turn_off_all_led()
+@ void turn_off_all_led()
+@
+@ Parameters:
+@   None
+@
+@ Returns:
+@   None
 @
 turn_off_all_led:
-  PUSH {R4-R5, LR}
+  PUSH    {R4-R5, LR}
 
   LDR     R4, =GPIOE_ODR
   LDR     R5, =0
-  STR     R5, [R4]
+  STR     R5, [R4]              @ Write 0 to all bits
 
-  POP {R4-R5, PC}
+  POP     {R4-R5, PC}
 
 @
-@ turn_on_led()
+@ void turn_on_led(unsigned int led_pin)
 @
-@ Arguments
+@ Parameters:
+@   R0  led pin to enable (8-15 inclusive)
 @
-@ R0  led pin to enable (8-15 inclusive)
+@ Returns:
+@   None
 @
 turn_on_led:
-  PUSH {R4-R6, LR}
+  PUSH    {R4-R6, LR}
 
   LDR     R4, =GPIOE_ODR
   LDR     R5, [R4]
   LDR     R6, =1
-  LSL     R6, R6, R0
-  ORR     R5, R6
-  STR     R5, [R4]
+  LSL     R6, R6, R0          @ Shift bit "1" left led_pin times
+  ORR     R5, R6              @ Set this bit
+  STR     R5, [R4]            @ Write
 
-  POP {R4-R6, PC}
+  POP     {R4-R6, PC}
 
 @
-@ turn_off_led()
+@ void turn_off_led(unsigned int led_pin)
 @
-@ Arguments
+@ Parameters:
+@   R0  led pin to turn off (8-15 inclusive)
 @
-@ R0  led pin to disable (8-15 inclusive)
+@ Returns:
+@   None
 @
 turn_off_led:
   PUSH {R4-R6, LR}
@@ -536,18 +547,20 @@ turn_off_led:
   LDR     R4, =GPIOE_ODR
   LDR     R5, [R4]
   LDR     R6, =1
-  LSL     R6, R6, R0
-  BIC     R5, R6
-  STR     R5, [R4]
+  LSL     R6, R6, R0            @ Shift bit "1" left led_pin times
+  BIC     R5, R6                @ Unset this bit
+  STR     R5, [R4]              @ Write
 
   POP {R4-R6, PC}
 
 @
-@ switch_led()
+@ void switch_led(unsigned int led_pin)
 @
-@ Arguments
+@ Parameters:
+@   R0  led pin to turn off (8-15 inclusive)
 @
-@ R0  led pin to enable (8-15 inclusive)
+@ Returns:
+@   None
 @
 switch_led:
   PUSH {R4-R6, LR}
@@ -555,58 +568,69 @@ switch_led:
   LDR     R4, =GPIOE_ODR
   LDR     R5, [R4]
   LDR     R6, =1
-  LSL     R6, R6, R0
-  EOR     R5, R6
-  STR     R5, [R4]
+  LSL     R6, R6, R0          @ Shift bit "1" left led_pin times
+  EOR     R5, R6              @ Invert this bit
+  STR     R5, [R4]            @ Write
 
   POP {R4-R6, PC}
 
 
 
 @
-@ increase_level()
+@ void increase_level()
+@
+@ Parameters:
+@   None
+@
+@ Returns:
+@   None
 @
 increase_level:
   PUSH {R4-R6, LR}
 
   LDR R4, =level
-  LDR R5, [R4]
-  LDR R6, =MAX_LEVEL
+  LDR R5, [R4]                  @ load(level)
+  LDR R6, =MAX_LEVEL            @ load(MAX_LEVEL)
   
 
-  CMP R5, R6
-  BHS .skip_increasing_level
-  ADD R5, R5, #1
-  STR R5, [R4]
+  CMP R5, R6                    @ if (level < MAX_LEVEL)
+  BHS .skip_increasing_level    @ {
+  ADD R5, R5, #1                @     level += 1
+  STR R5, [R4]                  @     update_global(level)
 
   LDR R6, =levels
   LDR R0, [R6, R5, LSL 2]
-  BL set_tick_period
-
-.skip_increasing_level:
+  BL set_tick_period            @     set_tick_period(read(levels_ptr + level * 4))
+.skip_increasing_level:         @ }
 
   POP {R4-R6, PC}
 
 
 @
-@ reset_game()
+@ void reset_game()
+@
+@ Parameters:
+@   None
+@
+@ Returns:
+@   None
 @
 reset_game:
   PUSH {R4-R5, LR}
 
   LDR R4, =level
   LDR R5, =0
-  STR R5, [R4]
+  STR R5, [R4]              @ global_level = 0  // set to zero (first)
   
   LDR R4, =levels
   LDR R0, [R4]
-  BL set_tick_period
+  BL set_tick_period        @ set_tick_period(levels[0])  // set speed of the first level
 
   LDR R4, =current_LED
   LDR R5, =8
-  STR R5, [R4]
+  STR R5, [R4]              @ global_current_LED = 8
 
-  BL set_next_target
+  BL set_next_target        @ set_next_target()
 
   POP {R4-R5, PC}
 
@@ -653,56 +677,58 @@ end_failure:
 
 .equ MAX_SEED_VALUE, 4294967295
 seed:
-  .space 4
-
-button_count:
-  .space  4
-
-blink_countdown:
-  .space  4
+  .space 4                   @ used for pseudo random generation
 
 .equ    INVITATION_BLINK_PERIOD, 1000
 invitation_timer:
-  .space  4
+  .space  4                  @ used to count the time for the invitation screen to change
 
-@ TODO: change to 1 byte
 @ unsigned int 4 bytes range 8-15
+@ A.k.a. mario, bright_LED, cursor_LED
 current_LED:
   .space  4
 
 @ unsigned int 4 bytes range 8-15
+@ A.k.a. target_LED, dimmed_LED
 correct_LED:
   .space  4
 
 @ time in ms since start of discovery.
+@ used to set up the initial seed value 
 total_ms:
   .space 4
 
 @ PRIVATE: TO BE SET ONLY AFTER INSIDE set_tick_period
+@ the period between frames. Determines frequency of Sys Tick Handler
 current_period:
   .space 4
 
 @ program_stage (4 bytes) (u8)
+@
+@ Default value = WAITING_FOR_SEED // a.k.a. invitation screen
 @
 @ enum: The current stage of the program
 @ Possible values:
 @   0: WAITING_FOR_SEED
 @   1: GAME_SKIPPING_SOME_TIME
 @   2: GAME_ONGOING
-@   3: GAME_FINISHED
+@   3: GAME_FINISHED  // unused
   .equ WAITING_FOR_SEED, 0
   .equ GAME_ONGOING, 2
-  .equ GAME_FINISHED, 3
 program_stage:
   .space 4
 
   .equ MAX_LEVEL, 29
+@ Array of different levels period values.
+@ Used because the period change should not be linear.
+@ Linear change in values produces boring game at start and frustratingly difficult later.
 levels:
   .word 500, 450, 400, 350, 310, 280, 260, 240, 220, 200
   .word 180, 160, 150, 140, 130, 125, 120, 115, 110, 105
   .word 100, 95,  90,  85,  80,  75,  70,  65,  60,  50
 
+@ current level index (0 based)
 level:
-  .zero 4
+  .zero 4 
 
   .end
